@@ -1,0 +1,1504 @@
+---
+title: "Basic Visualizations"
+author: "RPK"
+date: "April 22, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(nlme)
+library(psychometric)
+library(MASS)
+library(gnm)
+library(data.table)
+library(sjPlot)
+library(lme4)
+library(gridExtra)
+library(cluster)
+library(factoextra)
+library(ecodist)
+library(GLMMadaptive)
+library(ggpubr)
+source("032521PerSiteAnalys.R")
+
+#setwd("Madrone4/Madrone3/Basic Datasets") #easier directory to work from
+
+options(stringsAsFactors = FALSE)
+
+#Names
+years <- c(12, 13, 14, 15)
+#sites <- c("PuyallupHill","PuyallupValley", "Starker", "Sprague")
+sites <- c("PH", "PV", "SF", "SO")
+#Ecoregion data
+ecoregdat <- read.csv("../02Lvl1Processed/EcoregionData.csv")
+ecoregions <- unique(ecoregdat$EcoregionShort)
+
+#Sources
+sources <- unique(ecoregdat$Source)
+
+##Get the full data files
+pertfiles <- list("../02Lvl1Processed/033121PHFulldata.csv", "../02Lvl1Processed/033121PVFulldata.csv", "../02Lvl1Processed/033121SFFulldata.csv", "../02Lvl1Processed/033121SOFulldata.csv")
+sitesdata <- lapply(pertfiles,read.csv)
+names(sitesdata) <- sites
+
+##Baseline datasets
+
+##order is BL, PH, PV, PY, SF, SO
+eco_base <- c("CORA", "PULO", "PULO", "PULO", "WIVA", "KLMT")
+bFFP_base <- c(16, 84, 81, 82.5, 96, 110)
+
+```
+
+##General Notes
+https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
+
+_Baselines:_
+
+Ecoregion 
+BL <- CORA
+SO <- KLMT
+SF <- WIVA
+PV <- PULO
+PH <- PULO
+PY <- PULO
+
+Dist, NSDist, EWDist, ElevDist
+x = 0 for all
+
+bFFP
+BL <- 16
+SO <- 110
+SF <- 96
+PV <- 81
+PH <- 84
+PY <- 82.5
+
+eFFP
+BL <- 361
+SO <- 298
+SF <- 318
+PV <- 319
+PH <- 318
+PY <- 318.5
+
+FFP
+BL <- 345
+SO <- 188
+SF <- 222
+PV <- 238
+PH <- 234
+PY <- 236
+
+CORA_loc <- c("BA", "GA", "LA", "LC", "LG", "PV", "SA", "SC")
+
+PULO_loc <- c("AN", "BC", "BR", "CB", "CL", "FB", "FW", "GH", "KM", "KT", "OH", "OL", "PA", "PD", 
+              "SB", "VI", "WI", "CR")
+WIVA_loc <- c("AK", "OR", "VE", "WL", "WV", "ZE")
+
+KLMT_loc <- c("BK", "CP", "CY", "DY", "GP", "HC", "KL", "MG", "RA")
+
+Visualization tips
+- to look at the source level differences:
+  - make the X axis grouped by source with the y being mortality and color-coded by ecoregion (highlighting most local)
+    - maybe order them by highest mortalty rate
+    
+- do the same thing with all the rest. Then you should be able to see potential trends and look at the individual sources to compare. You can also look for potential drivers of trends and identify specific families
+
+##Growth Rates
+
+```{r}
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+  
+##Puyallup Hill -- Dist, eFFP
+PH <- GrowthRates[[1]]
+PH <- PH[!is.na(PH$TotGrowth),] ##need to fix this in the function
+PH_bFFP <- ggplot(PH, aes(x=eFFP, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
+
+PH_Eco <- ggplot(PH, aes(x=Ecoregion, y=TotGrowth)) + 
+  geom_boxplot()
+
+print(PH_Eco)
+print(PH_bFFP)
+
+##Puyallup Valley -- Ecoregion, Dist, eFFP
+PV <- GrowthRates[[2]]
+PV <- PV[!is.na(PV$TotGrowth),] ##need to fix this in the function
+PV_bFFP <- ggplot(PV, aes(x=bFFP, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
+
+PV_Eco <- ggplot(PV, aes(x=Ecoregion, y=TotGrowth)) + 
+  geom_boxplot()
+
+print(PV_Eco)
+print(PV_bFFP)
+
+##Starker Forest -- Ecoregion, Dist, Slipe, Aspect, eFFP, MSP, DD5_sp
+SF <- GrowthRates[[3]]
+SF <- SF[!is.na(SF$TotGrowth),] ##need to fix this in the function
+
+SF_Eco <- ggplot(SF, aes(x=Ecoregion, y=TotGrowth)) + 
+  geom_boxplot()
+
+SF_Dist <- ggplot(SF, aes(x=Dist, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm", color='grey')
+
+SF_bFFP <- ggplot(SF, aes(x=bFFP, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
+
+
+print(SF_Eco)
+print(SF_Dist)
+print(SF_bFFP)
+
+
+##Sprague Orchard -- Ecoregion, ElevDist
+SO <- GrowthRates[[4]]
+SO <- SO[!is.na(SO$TotGrowth),] ##need to fix this in the function
+
+SO_Eco <- ggplot(SO, aes(x=Ecoregion, y=TotGrowth)) + 
+  geom_boxplot()
+
+SO_Dist <- ggplot(SO, aes(x=Dist, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm", color='grey')
+
+SO_bFFP <- ggplot(SO, aes(x=bFFP, y=TotGrowth)) + 
+  geom_point(size = 3) + 
+  geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
+
+print(SO_Eco)
+print(SO_Dist)
+print(SO_bFFP)
+
+
+##Averages - if you want it to be a series of boxplots, you'd need to combine all the sitesdata
+totData <- rbindlist(GrowthRates)
+Overall_TG <- ggplot(totData, aes(x=Site, y=TotGrowth)) + 
+  geom_boxplot() + scale_x_discrete(name = "Common Garden Site") +
+        scale_y_continuous(name = "Overall Growth (mm)") + theme_bw()
+
+Overall_DBK <- ggplot(totData, aes(x=Site, y=AmntDieback)) + 
+  geom_boxplot()
+
+print(Overall_TG)
+
+print(Overall_DBK)
+
+fit_tg <- aov(TotGrowth ~ Site, data=totData)
+
+pairwise_tg <- TukeyHSD(fit_tg)[[1]] ##The problem is that this printout is monstrous
+sig05_pair_tg <- pairwise_tg[pairwise_tg[,4] < 0.05,] #just the ones under 0.05
+
+
+fit_dbk <- pairwise.wilcox.test(totData$AmntDieback, totData$Site,
+                 p.adjust.method = "BH")
+
+#fit_dbk <- aov(AmntDieback ~ Site, data=totData)
+
+#pairwise_dbk <- TukeyHSD(fit_dbk)[[1]] ##The problem is that this printout is monstrous
+#sig05_pair_dbk <- pairwise_dbk[pairwise_dbk[,4] < 0.05,] #just the ones under 0.05
+
+
+```
+
+##Across Years
+
+```{r}
+my_comparisons <- list( c("PH", "PV"), c("PH", "SF"), c("PH", "SO"), c("PV", "SF"), c("PV", "SO"), c("SF", "SO"))
+#stat_compare_means(comparisons = my_comparisons, method = "anova")+ # Add pairwise comparisons p-value
+#  stat_compare_means(label.y = 50) 
+
+totData <- rbindlist(GrowthRates)
+
+Overall_TG <- ggplot(totData, aes(x=Site, y=TotGrowth)) + 
+  geom_boxplot() + scale_x_discrete(name = "Common Garden Site") +
+        scale_y_continuous(name = "Overall Growth (cm)") + scale_fill_brewer(palette="YlGnBu") +
+        ggtitle("A") + 
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
+
+print(Overall_TG)
+
+fit_tg <- aov(TotGrowth ~ Site, data=totData)
+  
+
+  pairwise_tg <- TukeyHSD(fit_tg)
+  
+  ##bffp_func <- function(x){-0.001*x^2 + 0.0467*x}
+  #curve(bffp_func, 0, 180)
+  
+  
+#Mortality
+  condata <- IndivCond_final(sitesdata, sites)
+  totMData <- rbindlist(condata)
+  fit_mort <- aov(PercDead ~ Site, data=totMData)
+  
+
+  pairwise_mort <- TukeyHSD(fit_mort)
+  
+  Overall_mort <- ggplot(totMData, aes(x=Site, y=PercDead*100)) + 
+  geom_boxplot() + scale_x_discrete(name = "Common Garden Site") +
+        scale_y_continuous(name = "Percent Mortality") + scale_fill_brewer(palette="YlGnBu") +
+        ggtitle("B")  + 
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(100, 110, 120, 130, 140, 150))
+  
+  print(Overall_mort)
+  
+  grid.arrange(Overall_TG, Overall_mort, nrow = 1)
+  
+
+  #Dieback
+
+Overall_DBK <- ggplot(totData, aes(x=Site, y=AmntDieback)) + 
+  geom_boxplot() + scale_x_discrete(name = "Common Garden Site") +
+        scale_y_continuous(name = "Overall Growth (cm)") + scale_fill_brewer(palette="YlGnBu") +
+        ggtitle("A") + 
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
+
+print(Overall_DBK)
+
+```
+
+
+
+
+
+
+###Growth Rates 2
+
+```{r}
+
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+
+PH <- GrowthRates[[1]]
+PV <- GrowthRates[[2]]
+SF <- GrowthRates[[3]]
+SO <- GrowthRates[[4]]
+
+ctrl <- lmeControl(opt='optim')
+
+##PH: Dist, eFFP
+PH$eFFP2 <- (PH$eFFP)^2
+PH$Ecoregion <- relevel(as.factor(PH$Ecoregion), ref="PULO")
+PH_reg <- lme(TotGrowth ~ Dist + eFFP + eFFP2, random = ~1|Block, data = PH, na.action = na.omit, control = ctrl, method="ML")
+
+PH_est <- plot_model(PH_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+##PV: Ecoregion, Dist, eFFP
+PV$eFFP2 <- (PV$eFFP)^2
+PV$Ecoregion <- relevel(as.factor(PV$Ecoregion), ref="PULO")
+
+PV_reg <- lme(TotGrowth ~ Ecoregion + Dist + eFFP + eFFP2, random = ~1|Block, data = PV, na.action = na.omit, control = ctrl, method="ML")
+
+PV_est <- plot_model(PV_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+##SF: Ecoregion, Dist, Slope, Apsect, eFFP, MSP, DD5_sp
+SF$Slope2 <- (SF$Slope)^2
+SF$eFFP2 <- (SF$eFFP)^2
+SF$MSP2 <- (SF$MSP)^2
+SF$DD.5.sp2 <- (SF$DD.5.sp)^2
+SF$Aspect2 <- (SF$Aspect)^2
+SF$Ecoregion <- relevel(as.factor(SF$Ecoregion), ref="WIVA")
+
+SF_reg <- lme(TotGrowth ~ Ecoregion + Dist + Slope + Slope2 + Aspect + Aspect2 + eFFP + eFFP2 + MSP + MSP2 + DD.5.sp + DD.5.sp2, random = ~1|Block, data = SF, na.action = na.omit, control = ctrl, method="ML")
+
+SF_est <- plot_model(SF_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+##SO: eFFP, MSP, DD5_sp
+SO$eFFP2 <- (SO$eFFP)^2
+SO$MSP2 <- (SO$MSP)^2
+SO$DD.5.sp2 <- (SO$DD.5.sp)^2
+SO$Ecoregion <- relevel(as.factor(SO$Ecoregion), ref="KLMT")
+
+SO_reg <- lme(TotGrowth ~ eFFP + eFFP2 + MSP + MSP2 + DD.5.sp + DD.5.sp2, random = ~1|Block, data = SO, na.action = na.omit, control = ctrl, method="ML")
+
+SO_est <- plot_model(SO_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+grid.arrange(PH_est, PV_est, SF_est, SO_est, nrow = 2)
+
+colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval", "Corr_Pval")
+num_rws <- 3 +9 + 17 + 6
+storage_mat <- as.data.frame(matrix(0, nrow=num_rws, ncol=length(colnms)))
+names(storage_mat) <- colnms
+
+PH_rws <- 1:3
+PV_rws <- 4:12
+SF_rws <- 13:29
+SO_rws <- 30:35
+
+storage_mat$Dep_Var <- rep("Growth", num_rws)
+
+storage_mat$Site[PH_rws] <- rep("PH", 3)
+storage_mat$Indep_Var[PH_rws] <- rownames(summary(PH_reg)$tTable)[c(2:5)]
+storage_mat$Estimate[PH_rws] <- summary(PH_reg)$tTable[c(2:4), 1]
+storage_mat$Stdev[PH_rws] <- summary(PH_reg)$tTable[c(2:4), 2]
+storage_mat$Pval[PH_rws] <- summary(PH_reg)$tTable[c(2:4), 5]
+
+storage_mat$Site[PV_rws] <- rep("PV", 9)
+storage_mat$Indep_Var[PV_rws] <- rownames(summary(PV_reg)$tTable)[c(2:10)]
+storage_mat$Estimate[PV_rws] <- summary(PV_reg)$tTable[c(2:10), 1]
+storage_mat$Stdev[PV_rws] <- summary(PV_reg)$tTable[c(2:10), 2]
+storage_mat$Pval[PV_rws] <- summary(PV_reg)$tTable[c(2:10), 5]
+
+storage_mat$Site[SF_rws] <- rep("SF", 17)
+storage_mat$Indep_Var[SF_rws] <- rownames(summary(SF_reg)$tTable)[c(2:18)]
+storage_mat$Estimate[SF_rws] <- summary(SF_reg)$tTable[c(2:18), 1]
+storage_mat$Stdev[SF_rws] <- summary(SF_reg)$tTable[c(2:18), 2]
+storage_mat$Pval[SF_rws] <- summary(SF_reg)$tTable[c(2:18), 5]
+
+storage_mat$Site[SO_rws] <- rep("SO",6)
+storage_mat$Indep_Var[SO_rws] <- rownames(summary(SO_reg)$tTable)[c(2:7)]
+storage_mat$Estimate[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 1]
+storage_mat$Stdev[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 2]
+storage_mat$Pval[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 5]
+
+##bonferroni corrections
+storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
+
+write.csv(storage_mat, "../04Lvl2Processed/060821growth_estimates.csv")
+
+
+```
+
+
+
+##Growth Rates - split years
+
+```{r split growth}
+ctrl <- lmeControl(opt='optim')
+
+##Baseline
+years <- c(12, 13)
+
+#just to recreate the datasets
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+
+##PH - Ecoregion + ElevDist
+PH <- GrowthRates[[1]]
+PH$Ecoregion <- relevel(as.factor(PH$Ecoregion), ref="PULO")
+PH$ElevDist2 <- (PH$ElevDist)^2
+
+PH_reg <- lme(TotGrowth ~ Ecoregion + ElevDist + ElevDist2, random = ~1|Block, data = PH, na.action = na.omit, control = ctrl, method="ML")
+
+PH_est <- plot_model(PH_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+##PV - Ecoregion
+PV <- GrowthRates[[2]]
+PV$Ecoregion <- relevel(as.factor(PV$Ecoregion), ref="PULO")
+PV_reg <- lme(TotGrowth ~ Ecoregion, random = ~1|Block, data = PV, na.action = na.omit, control = ctrl, method="ML")
+
+PV_est <- plot_model(PV_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+##SF - Ecoregion + Dist + ElevDist + bFFP
+SF <- GrowthRates[[3]]
+SF$Ecoregion <- relevel(as.factor(SF$Ecoregion), ref="WIVA")
+SF$ElevDist2 <- (SF$ElevDist)^2
+SF$bFFP2 <- (SF$bFFP)^2
+
+SF_reg <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + bFFP + bFFP2, random = ~1|Block, data = SF, na.action = na.omit, control = ctrl, method="ML")
+
+SF_est <- plot_model(SF_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+##SO - ElevDist + MSP
+SO <- GrowthRates[[4]]
+SO$Ecoregion <- relevel(as.factor(SO$Ecoregion), ref="KLMT")
+SO$MSP2 <- (SO$MSP)^2
+SO$ElevDist2 <- (SO$ElevDist)^2
+  
+SO_reg <- lme(TotGrowth ~ ElevDist + ElevDist2 + MSP + MSP2, random = ~1|Block, data = SO, na.action = na.omit, control = ctrl, method="ML")
+
+SO_est <- plot_model(SO_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+fig1 <- grid.arrange(PH_est, PV_est, SF_est, SO_est, nrow = 2)
+
+##Drought years
+years <- c(14, 15)
+
+#just to recreate the datasets
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+
+#PH - MSP
+PH <- GrowthRates[[1]]
+PH$Ecoregion <- relevel(as.factor(PH$Ecoregion), ref="PULO")
+PH$MSP2 <- (PH$MSP)^2
+
+PH_reg2 <- lme(TotGrowth ~ MSP + MSP2, random = ~1|Block, data = PH, na.action = na.omit, control = ctrl, method="ML")
+
+PH_est2 <- plot_model(PH_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+#PV - Ecoregion + Dist + ElevDist + bFFP
+PV <- GrowthRates[[2]]
+PV$Ecoregion <- relevel(as.factor(PV$Ecoregion), ref="PULO")
+
+PV$ElevDist2 <- (PV$ElevDist)^2
+PV$bFFP2 <- (PV$bFFP)^2
+
+PV_reg2 <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + bFFP + bFFP2, random = ~1|Block, data = PV, na.action = na.omit, control = ctrl, method="ML")
+
+PV_est2 <- plot_model(PV_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+#SF - Ecoregion + Dist + Aspect
+SF <- GrowthRates[[2]]
+SF$Ecoregion <- relevel(as.factor(SF$Ecoregion), ref="WIVA")
+
+SF$Aspect2 <- (SF$Aspect)^2
+
+SF_reg2 <- lme(TotGrowth ~ Ecoregion + Dist + Aspect + Aspect2, random = ~1|Block, data = SF, na.action = na.omit, control = ctrl, method="ML")
+
+SF_est2 <- plot_model(SF_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+#SO - Ecoregion + bFFP
+SO <- GrowthRates[[2]]
+
+SO$bFFP2 <- (SO$bFFP)^2
+SO$Ecoregion <- relevel(as.factor(SO$Ecoregion), ref="KLMT")
+
+SO_reg2 <- lme(TotGrowth ~ Ecoregion + bFFP + bFFP2, random = ~1|Block, data = SO, na.action = na.omit, control = ctrl, method="ML")
+
+SO_est2 <- plot_model(SO_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+fig2 <- grid.arrange(PH_est2, PV_est2, SF_est2, SO_est2, nrow = 2)
+
+
+```
+
+
+##Mortality - all years
+
+```{r}
+sites <- c("PH","PV", "SF", "SO")
+condata <- IndivCond_final(sitesdata, sites) ##need to fix this function (is not in PerSiteAnalys2)
+# totMData <- rbindlist(condata)
+# 
+# Overall_Mort <- ggplot(totMData, aes(x=Site, y=(PercDead)*100)) + 
+#   geom_boxplot() + scale_x_discrete(name = "Common Garden Site") +
+#         scale_y_continuous(name = "Percent Mortality") + theme_bw()
+# 
+# print(Overall_Mort)
+# 
+# fit_pmt <- aov(PercDead ~ Site, data=totMData)
+# 
+# pairwise_pmt <- TukeyHSD(fit_pmt)[[1]] ##The problem is that this printout is monstrous
+# sig05_pair_pmt <- pairwise_pmt[pairwise_pmt[,4] < 0.05,] #just the ones under 0.05
+# 
+# print(sig05_pair_pmt)
+#   
+###IF YOU WANT IT TO MATCH UP YOU NEED TO DO RESCALING
+
+
+##PH - Ecoregion, ElevDist
+PH_mort <- condata[[1]]
+PH_mort$Ecoregion <- relevel(as.factor(PH_mort$Ecoregion), ref="PULO")
+PH_reg <- glmer(PercDead ~ Ecoregion + ElevDist + (1|Block), data = PH_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PH_odds <- plot_model(PH_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+print(summary(PH_reg))
+
+##PV - Ecoregion, Dist, Slope, Aspect, ElevDist, eFFP
+PV_mort <- condata[[2]]
+PV_mort$Ecoregion <- relevel(as.factor(PV_mort$Ecoregion), ref="PULO")
+rescale_cols <- seq(1:length(names(PV_mort)))[names(PV_mort) %in% c("Dist", "Slope","Aspect", "ElevDist", "eFFP")]
+PV_mort[, rescale_cols] <- scale(PV_mort[,rescale_cols])
+PV_reg <- glmer(PercDead ~ Ecoregion + Dist + Slope + Aspect + ElevDist + eFFP + (1|Block), data = PV_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PV_odds <- plot_model(PV_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+print(summary(PV_reg))
+
+##SF - Ecoregion, Dist, Slope, eFFP, DD5_sp
+SF_mort <- condata[[3]]
+SF_mort$Ecoregion <- relevel(as.factor(SF_mort$Ecoregion), ref="WIVA")
+rescale_cols <- seq(1:length(names(SF_mort)))[names(SF_mort) %in% c("Dist", "Slope", "eFFP", "DD.5.sp")]
+SF_mort[, rescale_cols] <- scale(SF_mort[,rescale_cols])
+SF_reg <- glmer(PercDead ~ Ecoregion + Dist + Slope + eFFP + DD.5.sp + (1|Block), data = SF_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SF_odds <- plot_model(SF_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+print(summary(SF_reg))
+
+##SO - Dist, Slope, eFFP
+SO_mort <- condata[[4]]
+SO_mort$Ecoregion <- relevel(as.factor(SO_mort$Ecoregion), ref="KLMT")
+rescale_cols <- seq(1:length(names(SO_mort)))[names(SO_mort) %in% c("Dist", "Slope", "eFFP")]
+SO_mort[, rescale_cols] <- scale(SO_mort[,rescale_cols])
+SO_reg <- glmer(PercDead ~ Dist + Slope + eFFP + (1|Block), data = SO_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SO_odds <- plot_model(SO_reg, colors = "bw", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+print(summary(SO_reg))
+
+grid.arrange(PH_odds, PV_odds, SF_odds, SO_odds, nrow = 2)
+
+#fixef(SO_reg)
+#summary(SO_reg)$coef
+
+colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval", "Corr_Pval")
+num_rws <- 7 +11 + 10 + 3
+storage_mat <- as.data.frame(matrix(0, nrow=num_rws, ncol=length(colnms)))
+names(storage_mat) <- colnms
+
+PH_rws <- 1:7
+PV_rws <- 8:18
+SF_rws <- 19:28
+SO_rws <- 29:31
+
+storage_mat$Dep_Var <- rep("Mortality", 31)
+
+storage_mat$Site[PH_rws] <- rep("PH", 7)
+storage_mat$Indep_Var[PH_rws] <- rownames(summary(PH_reg)$coef)[c(2:8)]
+storage_mat$Estimate[PH_rws] <- summary(PH_reg)$coef[c(2:8), 1]
+storage_mat$Stdev[PH_rws] <- summary(PH_reg)$coef[c(2:8), 2]
+storage_mat$Pval[PH_rws] <- summary(PH_reg)$coef[c(2:8), 4]
+
+storage_mat$Site[PV_rws] <- rep("PV", 10)
+storage_mat$Indep_Var[PV_rws] <- rownames(summary(PV_reg)$coef)[c(2:12)]
+storage_mat$Estimate[PV_rws] <- summary(PV_reg)$coef[c(2:12), 1]
+storage_mat$Stdev[PV_rws] <- summary(PV_reg)$coef[c(2:12), 2]
+storage_mat$Pval[PV_rws] <- summary(PV_reg)$coef[c(2:12), 4]
+
+storage_mat$Site[SF_rws] <- rep("SF", 10)
+storage_mat$Indep_Var[SF_rws] <- rownames(summary(SF_reg)$coef)[c(2:11)]
+storage_mat$Estimate[SF_rws] <- summary(SF_reg)$coef[c(2:11), 1]
+storage_mat$Stdev[SF_rws] <- summary(SF_reg)$coef[c(2:11), 2]
+storage_mat$Pval[SF_rws] <- summary(SF_reg)$coef[c(2:11), 4]
+
+storage_mat$Site[SO_rws] <- "SO"
+storage_mat$Indep_Var[SO_rws] <- rownames(summary(SO_reg)$coef)[c(2:4)]
+storage_mat$Estimate[SO_rws] <- summary(SO_reg)$coef[c(2:4), 1]
+storage_mat$Stdev[SO_rws] <- summary(SO_reg)$coef[c(2:4), 2]
+storage_mat$Pval[SO_rws] <- summary(SO_reg)$coef[c(2:4), 4]
+
+storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
+
+
+write.csv(storage_mat, "060821mortality_estimates.csv")
+
+```
+
+
+##Mortality - split years
+```{r split years}
+##Baseline
+years <- c(12, 13)
+
+#just to recreate the datasets
+condata <- IndivCond_final(sitesdata, sites)
+
+##PH - Ecoregion + ElevDist + bFFP
+PH_mort <- condata[[1]]
+PH_mort$Ecoregion <- relevel(as.factor(PH_mort$Ecoregion), ref="PULO")
+
+PH_reg <- glmer(PercDead ~ Ecoregion + ElevDist + bFFP + (1|Block), data = PH_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PH_odds <- plot_model(PH_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+##PV - Ecoregion + ElevDist
+PV_mort <- condata[[2]]
+PV_mort$Ecoregion <- relevel(as.factor(PV_mort$Ecoregion), ref="PULO")
+
+PV_reg <- glmer(PercDead ~ Ecoregion + ElevDist + (1|Block), data = PV_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PV_odds <- plot_model(PV_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+##SF - Ecoregion + Dist + Aspect + bFFP
+SF_mort <- condata[[3]]
+SF_mort$Ecoregion <- relevel(as.factor(SF_mort$Ecoregion), ref="WIVA")
+
+SF_reg <- glmer(PercDead ~ Ecoregion + Dist + Aspect + bFFP + (1|Block), data = SF_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SF_odds <- plot_model(SF_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+##SO - ElevDist
+SO_mort <- condata[[4]]
+SO_mort$Ecoregion <- relevel(as.factor(SO_mort$Ecoregion), ref="KLMT")
+
+SO_reg <- glmer(PercDead ~ ElevDist + (1|Block), data = SO_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SO_odds <- plot_model(SO_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+grid.arrange(PH_odds, PV_odds, SF_odds, SO_odds, nrow = 2)
+  
+##Drought years
+years <- c(14, 15)
+
+#just to recreate the datasets
+condata <- IndivCond_final(sitesdata, sites)
+
+##PH - Ecoregion + ElevDist
+PH_mort <- condata[[1]]
+PH_mort$Ecoregion <- relevel(as.factor(PH_mort$Ecoregion), ref="PULO")
+
+PH_reg2 <- glmer(PercDead ~ Ecoregion + ElevDist+ (1|Block), data = PH_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PH_odds2 <- plot_model(PH_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+##PV - Ecoregion + Dist + Slope + Aspect + bFFP
+PV_mort <- condata[[2]]
+PV_mort$Ecoregion <- relevel(as.factor(PV_mort$Ecoregion), ref="PULO")
+
+PV_reg2 <- glmer(PercDead ~ Ecoregion + Dist + Slope + Aspect + bFFP + (1|Block), data = PV_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+PV_odds2 <- plot_model(PV_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
+
+##SF - Ecoregion + Dist + Slope
+SF_mort <- condata[[3]]
+SF_mort$Ecoregion <- relevel(as.factor(SF_mort$Ecoregion), ref="WIVA")
+
+SF_reg2 <- glmer(PercDead ~ Ecoregion + Dist + Slope + (1|Block), data = SF_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SF_odds2 <- plot_model(SF_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+##SO - Ecoregion + Dist + MSP
+SO_mort <- condata[[4]]
+SO_mort$Ecoregion <- relevel(as.factor(SO_mort$Ecoregion), ref="KLMT")
+
+SO_reg2 <- glmer(PercDead ~ Ecoregion + Dist + MSP + (1|Block), data = SO_mort, 
+                family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
+                weights = Total)
+
+SO_odds2 <- plot_model(SO_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
+
+grid.arrange(PH_odds2, PV_odds2, SF_odds2, SO_odds2, nrow = 2)
+
+```
+
+
+
+## Phenology
+
+
+```{r}
+PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
+
+ctrl <- lmeControl(opt='optim')
+
+#Ecoregion_Long_Elev_eFFP_MSP_Slope_Aspect_DD.5.sp
+
+# Phen_Eco <- ggplot(PhenData, aes(x=Ecoregion, y=Bud.Elongating)) + 
+#   geom_boxplot()
+# 
+# Phen_Lat <- ggplot(PhenData, aes(x=Lat, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_Long <- ggplot(PhenData, aes(x=Long, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_Elev <- ggplot(PhenData, aes(x=Elev, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_bFFP <- ggplot(PhenData, aes(x=bFFP, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_MSP <- ggplot(PhenData, aes(x=MSP, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_Slope <- ggplot(PhenData, aes(x=Slope, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# Phen_Aspect <- ggplot(PhenData, aes(x=Aspect, y=Bud.Elongating)) + 
+#   geom_point(size = 3) + 
+#   geom_smooth(method="lm", color='grey')
+# 
+# print(Phen_Eco)
+# print(Phen_Lat)
+# print(Phen_Long)
+# print(Phen_Elev)
+# print(Phen_bFFP)
+# print(Phen_MSP)
+# print(Phen_Slope)
+# print(Phen_Aspect)
+
+##BSW
+#BSW_reg <- lme(Bud.Swollen ~ Ecoregion + Lat + Long + bFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit, control = ctrl, method="ML")
+
+#BSW_est <- plot_model(BSW_reg, colors = "gs", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
+
+##BEL
+PhenData$Ecoregion <- relevel(as.factor(PhenData$Ecoregion), ref="WIVA")
+  
+BEL_reg <- lme(Bud.Elongating ~ Ecoregion + Long + Elev + eFFP + MSP + Slope + Aspect + DD.5.sp, random = ~1|Block, data = PhenData, na.action = na.omit, control = ctrl, method="ML")
+
+BEL_est <- plot_model(BEL_reg, colors = "bw", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", digits = 3, title = "") + theme_sjplot()
+
+##LEM
+#LEM_reg <- lme(Leaves.emerging ~ Ecoregion + Lat + Long + Elev + bFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit)
+
+#LEM_est <- plot_model(LEM_reg, colors = "gs", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
+
+#grid.arrange(BSW_est, BEL_est, LEM_est, nrow = 2, ncol=2)
+
+```
+
+##Source-level
+
+try to get source-level averages of OGR, DBK, and PMT
+```{r}
+#totData
+#totMData
+colnms <- c("Ecoregion", "Source", "PH_OGR","PV_OGR","SF_OGR", "SO_OGR", "PH_DBK", "PV_DBK",
+            "SF_DBK", "SO_DBK", "PH_PMT", "PV_PMT", "SF_PMT", "SO_PMT")
+outputmat <- as.data.frame(matrix(0, nrow = length(unique(totData$Source)), ncol = length(colnms)))
+names(outputmat) <- colnms
+mat_ind <- 0
+for (src in unique(totData$Source)){ #for each source
+  mat_ind <- mat_ind + 1
+  
+  src_dat <- totData[totData$Source == src, ]
+  srcMort_dat <- totMData[totMData$Source == src, ]
+  
+  outputmat$Source[mat_ind] <- src
+  outputmat$Ecoregion[mat_ind] <- src_dat$Ecoregion[1]
+  
+  for (st in unique(src_dat$Site)) {#for each site
+    
+    srcst_dat <- src_dat[src_dat$Site == st,]
+    srcMortst_dat <- srcMort_dat[srcMort_dat$Site == st,]
+    #find the average OGR, DBK, and PMT
+    #maybe add a standard deviation? 
+    
+    avg_ogr <- mean(na.omit(srcst_dat$TotGrowth))
+    #sd_ogr <- sd(na.omit(srcst_dat$TotGrowth))
+    
+    avg_dbk <- mean(srcst_dat$AmntDieback) 
+    #sd_dbk <- sd(srcst_dat$AmntDieback)
+    
+    avg_pmt <- mean(na.omit(srcMortst_dat$PercDead))
+    #sd_pmt <- sd(na.omit(srcMortst_dat$PercDead))
+    
+    if (st == "PH"){
+      outputmat$PH_OGR[mat_ind] <- avg_ogr
+      #outputmat$PH_OGR_SD[mat_ind] <- sd_ogr
+      
+      outputmat$PH_DBK[mat_ind] <- avg_dbk
+      #outputmat$PH_DBK_SD[mat_ind] <- sd_dbk
+      
+      outputmat$PH_PMT[mat_ind] <- avg_pmt
+      #outputmat$PH_PMT_SD[mat_ind] <- sd_pmt
+      
+    } else if (st == "PV"){
+      outputmat$PV_OGR[mat_ind] <- avg_ogr
+      #outputmat$PV_OGR_SD[mat_ind] <- sd_ogr
+      
+      outputmat$PV_DBK[mat_ind] <- avg_dbk
+      #outputmat$PV_DBK_SD[mat_ind] <- sd_dbk
+      
+      outputmat$PV_PMT[mat_ind] <- avg_pmt
+      #outputmat$PV_PMT_SD[mat_ind] <- sd_pmt
+      
+    } else if (st == "SF"){
+      outputmat$SF_OGR[mat_ind] <- avg_ogr
+      #outputmat$SF_OGR_SD[mat_ind] <- sd_ogr
+      
+      outputmat$SF_DBK[mat_ind] <- avg_dbk
+      #outputmat$SF_DBK_SD[mat_ind] <- sd_dbk
+      
+      outputmat$SF_PMT[mat_ind] <- avg_pmt
+      #outputmat$SF_PMT_SD[mat_ind] <- sd_pmt
+      
+    } else if ( st == "SO"){
+      outputmat$SO_OGR[mat_ind] <- avg_ogr
+      #outputmat$SO_OGR_SD[mat_ind] <- sd_ogr
+      
+      outputmat$SO_DBK[mat_ind] <- avg_dbk
+      #outputmat$SO_DBK_SD[mat_ind] <- sd_dbk
+      
+      outputmat$SO_PMT[mat_ind] <- avg_pmt
+      #outputmat$SO_PMT_SD[mat_ind] <- sd_pmt
+      
+    }
+  
+  }
+
+}
+
+write.csv(outputmat, "0701SourceAverages.csv")
+#output is a table with 4 x 3 = 12 columns (24 if you have standard deviationz) and 52 (?) rows
+
+```
+
+##Source-level analyses
+```{r}
+#totData
+#totMData
+
+sites <- c("PH", "PV", "SF", "SO")
+
+for (st in sites){ #site loop
+  st_dat <- totData[totData$Site == st, ]
+  stMort_dat <- totMData[totMData$Site == st, ]
+  
+  print(paste("Analyses at", st))
+  
+  ##TotGrowth
+  fit_tg <- aov(TotGrowth ~ Source, data=st_dat)
+  
+
+  pairwise_tg <- TukeyHSD(fit_tg)[[1]] ##The problem is that this printout is monstrous
+  sig10_pair <- pairwise_tg[pairwise_tg[,4] < 0.1,] #just the ones under 0.1
+  sig05_pair <- pairwise_tg[pairwise_tg[,4] < 0.05,] #just the ones under 0.05
+  
+  tot_num_pair <- length(pairwise_tg[,1])
+  num_sig05_pair <- sum(pairwise_tg[,4] < 0.05)
+  
+  print(paste("Percent of total pairwise Total Growth sig at 0.05 is:", num_sig05_pair/tot_num_pair))
+  
+  ##Is it worth having the above in a CSV and save yourself some pain? 
+  
+  write.csv(sig05_pair, print(paste("GRByFamilyTotGrowth_", st, ".csv", sep="")))
+  
+  ##NumDieback
+  fit_dbk <- aov(AmntDieback ~ Source, data=st_dat)
+
+  pairwise_dbk <- TukeyHSD(fit_dbk)[[1]] ##The problem is that this printout is monstrous
+  sig05_pair <- pairwise_dbk[pairwise_dbk[,4] < 0.05,] #just the ones under 0.05
+  
+  tot_num_pair <- length(pairwise_dbk[,1])
+  num_sig05_pair <- sum(pairwise_dbk[,4] < 0.05)
+  
+  print(paste("Percent of total pairwise Dieback sig at 0.05 is:", num_sig05_pair/tot_num_pair))
+  
+  write.csv(sig05_pair, print(paste("GRByFamilyDieback_", st, ".csv", sep="")))
+ 
+  ##Mortality
+   ##NumDieback
+  fit_pmt <- aov(PercDead ~ Source, data=stMort_dat)
+
+  pairwise_pmt <- TukeyHSD(fit_pmt)[[1]] ##The problem is that this printout is monstrous
+  sig05_pair <- pairwise_pmt[pairwise_pmt[,4] < 0.05,] #just the ones under 0.05
+  
+  tot_num_pair <- length(pairwise_pmt[,1])
+  num_sig05_pair <- sum(pairwise_pmt[,4] < 0.05)
+  
+  print(paste("Percent of total pairwise Mortality sig at 0.05 is:", num_sig05_pair/tot_num_pair))
+  
+  write.csv(sig05_pair, print(paste("GRByFamilyMort_", st, ".csv", sep="")))
+}
+
+```
+
+##AVg number of trees
+```{r}
+s_ind <- 0
+fam_nums <- as.data.frame(matrix(0, nrow = 105*4, ncol = 3))
+names(fam_nums) <- c("Site", "Family", "num_fams")
+
+fam_nums_bysite <- as.data.frame(matrix(0, nrow = 4, ncol = 2))
+names(fam_nums_bysite) <- c("Site", "num_fams")
+  
+for (s in 1:length(sites)){
+  
+  site <- sites[s]
+  d <- sitesdata[[s]]
+  d <- d[d$Year==12,]
+  
+  for (f in unique(d$Family)){
+    s_ind <- s_ind + 1
+    
+    fdat <- d[d$Family==f,]
+    nblocks <- length(unique(fdat$Block))
+    
+    avg <- length(fdat$Tree)/nblocks
+    
+    fam_nums[s_ind, 1] <- site
+    fam_nums[s_ind, 2] <- f
+    fam_nums[s_ind, 3] <- avg
+  }
+  
+  fam_nums_bysite[s, 1] <- site
+  fam_nums_bysite[s, 2] <- mean(fam_nums[c(fam_nums[,1]==site),3])
+  
+}
+
+```
+
+## Grouping
+
+restart here but do an ANOVA or something!
+```{r}
+#kmeans clustering
+#scale functions
+#silhouette method 
+fullClim <- read.csv("../02Lvl1Processed/WeatherData.csv")
+locData <- read.csv("../02Lvl1Processed/033121LocClim.csv")
+ecoregdat <- read.csv("../02Lvl1Processed/EcoregionData.csv")
+st_rows <- c(77,78,95, 92)
+st_ind <- c(77, 77, 94, 91) #where the site should be in the cluster output file
+
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+condata <- IndivCond_final(sitesdata, sites)
+
+output_mat <- as.data.frame(matrix(0, nrow=4, ncol=12))
+names(output_mat) <- c("InGR", "InGR_SE", "OGR", "OGR_SE", "InDBK", "InDBK_SE", "ODBK", "ODBK_SE", "InMort", "InMort_SE", "OMort", "OMort_SE")
+  
+merData <- merge(locData, fullClim, by="Family")
+merData <- merge(merData, ecoregdat, by="Family")
+merData <- merData[,c(1, 6:8, 13, 21:39, 41:59, 64:99, 269)]
+
+##EcoMap
+EcoNums <- c(1,2,3,4,5,6,7)
+names(EcoNums) <- c("PULO", "WIVA", "CORA", "KLMT", "CSCD", "SRNA", "CSCO")
+merData$Eco <- EcoNums[merData$EcoregionShort]
+##Should make sure the numbers are in some kind of reasonable order
+merData$Eco <- as.numeric(as.factor(merData$EcoregionShort)) 
+
+cs <- c(9,9,7,9)
+
+st_eco <- c("PULO", "PULO", "WIVA", "KLMT")
+sites <- names(GrowthRates)
+
+##storing the p-values for bonferroni correction
+pdf_cols <- c("o_pval", "a_pval", "site", "DepVar")
+p_val_df <- as.data.frame(matrix(0, nrow=12, ncol=length(pdf_cols)))
+names(p_val_df) <- pdf_cols
+pdf_iter <- 0
+
+for (s in 1:4){ #sites
+  
+  #for storing p-values
+  pdf_iter <- pdf_iter + 1
+  
+  site <- st_rows[s] #cg sites
+  locs <- merData[-c(st_rows[-s]),] #get rid of other cg
+  
+  locs_rescale <- apply(locs[,c(2:79)], 2, scale)
+  locs_rescale <- cbind(locs_rescale, locs[,81])
+  rownames(locs_rescale) <- locs[,1]
+  colnames(locs_rescale) <- colnames(locs)[c(2:79, 81)]
+  
+  locs_rescale <- as.data.frame(locs_rescale[,c(1:4, 10, 19, 48, 79)])
+  
+  c <- fviz_nbclust(locs_rescale, kmeans, method="silhouette")
+  print(c)
+  clusters <- kmeans(locs_rescale, centers = cs[s])
+  #print(clusters)
+
+  cg_cl <- clusters$cluster[[st_ind[s]]]
+  fams_CgClust <- names(clusters$cluster[clusters$cluster==cg_cl])
+  #cg_mn <- clusters$centers[cg_cl,]
+  other_mns <- c(1:max(clusters$cluster))[-cg_cl]
+
+  max_dist <- 0
+  fur_clust <- "NA"
+  for (o in other_mns){
+    dist_cl <- distance(x=clusters$centers[c(cg_cl,o),], method = "euclidean")
+    if(dist_cl > max_dist){
+      max_dist <- dist_cl
+      fur_clust <- o
+    }
+
+  }
+
+  fams_OClust <- names(clusters$cluster[clusters$cluster==fur_clust])
+
+  ##GET THE AVERAGES
+  site_GR <- GrowthRates[[s]]
+  site_Mort <- condata[[s]]
+
+  ##Growth Rate
+  cg_cl_gr <- na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_CgClust])
+  #cg_cl_gr <- mean(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_CgClust]))
+  #cg_cl_gr_se <- sd(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_CgClust]))/sqrt(length(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_CgClust])))
+  
+  o_cl_gr <- na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_OClust])
+  #o_cl_gr <- mean(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_OClust]))
+  #o_cl_gr_se <- sd(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_OClust]))/sqrt(length(na.omit(site_GR$TotGrowth[site_GR$Family %in% fams_OClust])))
+  
+  
+  ##dataframe with them
+  a <- length(cg_cl_gr)
+  b <- length(o_cl_gr)
+  tot_len <- a + b
+  gr_df <- as.data.frame(matrix(0, nrow = tot_len, ncol = 6))
+  names(gr_df) <- c("Site", "Group", "GR","NumLoc","NumDist", "AIC")
+  
+  
+  gr_df$Site <- rep("Site", tot_len)
+  gr_df$Group[1:a] <- rep("Local", a)
+  gr_df$GR[1:a] <- cg_cl_gr
+  gr_df$GR[(a + 1):(a+b)] <- o_cl_gr
+  gr_df$Group[(a + 1):(a+b)] <- rep("Dist", b)
+  gr_df$NumLoc[1] <- length(fams_CgClust)
+  gr_df$NumDist[1] <- length(fams_OClust)
+  
+  
+  gr_df$AIC[1] <- summary(aov(GR ~ Group, data = gr_df))[[1]][["Pr(>F)"]][1]
+  #store for correction later
+  p_val_df$o_pval[pdf_iter] <- gr_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Growth"
+  
+  pdf_iter <- pdf_iter + 1
+  
+  
+  boxplot(GR~Group,data=gr_df, main=print(paste("Growth at", sites[s])),
+   xlab="Groups", ylab="Growth (cm)")
+  
+  ##Dieback
+  cg_cl_dbk <- na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_CgClust])
+  #cg_cl_dbk <- mean(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_CgClust]))
+  #cg_cl_dbk_se <- sd(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_CgClust]))/sqrt(length(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_CgClust])))
+  
+  o_cl_dbk <- na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_OClust])
+  #o_cl_dbk <- mean(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_OClust]))
+  #o_cl_dbk_se <- sd(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_OClust]))/sqrt(length(na.omit(site_GR$AmntDieback[site_GR$Family %in% fams_OClust])))
+
+  ##dataframe with them
+  a <- length(cg_cl_dbk)
+  b <- length(o_cl_dbk)
+  tot_len <- a + b
+  dbk_df <- as.data.frame(matrix(0, nrow = tot_len, ncol = 6))
+  names(dbk_df) <- c("Site", "Group", "DBK","NumLoc","NumDist", "AIC")
+  
+  
+  dbk_df$Site <- rep("Site", tot_len)
+  dbk_df$Group[1:a] <- rep("Local", a)
+  dbk_df$DBK[1:a] <- cg_cl_dbk
+  dbk_df$DBK[(a + 1):(a+b)] <- o_cl_dbk
+  dbk_df$Group[(a + 1):(a+b)] <- rep("Dist", b)
+  dbk_df$NumLoc[1] <- length(fams_CgClust)
+  dbk_df$NumDist[1] <- length(fams_OClust)
+  
+  dbk_df$AIC[1] <- summary(aov(DBK ~ Group, data = dbk_df))[[1]][["Pr(>F)"]][1]
+  
+  #store p-values for correction
+  p_val_df$o_pval[pdf_iter] <- dbk_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Dieback"
+  
+  pdf_iter <- pdf_iter + 1
+  
+  ##Mortality
+  cg_cl_mort <- na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_CgClust])
+  #cg_cl_mort <- mean(na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_CgClust]))
+  #cg_cl_mort_se <- sd(na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_CgClust]))/sqrt(length(na.omit(site_Mort$PercDead[site_GR$Family %in% fams_CgClust])))
+  
+  o_cl_mort <- na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_OClust])
+  #o_cl_mort <- mean(na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_OClust]))
+ # o_cl_mort_se <- sd(na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_OClust]))/sqrt(length(na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_OClust])))
+  
+  ##dataframe with them
+  a <- length(cg_cl_mort)
+  b <- length(o_cl_mort)
+  tot_len <- a + b
+  mort_df <- as.data.frame(matrix(0, nrow = tot_len, ncol = 6))
+  names(mort_df) <- c("Site", "Group", "Mort","NumLoc","NumDist", "AIC")
+  
+  
+  mort_df$Site <- rep("Site", tot_len)
+  mort_df$Group[1:a] <- rep("Local", a)
+  mort_df$Mort[1:a] <- cg_cl_mort
+  mort_df$Mort[(a + 1):(a+b)] <- o_cl_mort
+  mort_df$Group[(a + 1):(a+b)] <- rep("Dist", b)
+  mort_df$NumLoc[1] <- length(fams_CgClust)
+  mort_df$NumDist[1] <- length(fams_OClust)
+  
+  mort_df$AIC[1] <- summary(aov(Mort ~ Group, data = mort_df))[[1]][["Pr(>F)"]][1]
+  
+  #store p-values for correction
+  p_val_df$o_pval[pdf_iter] <- mort_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Mortality"
+  
+  ###
+  print(paste("For site", sites[s]))
+  print(fams_CgClust)
+  print(fams_OClust)
+  
+  ##GR
+  print(paste("Local GR: ", mean(gr_df$GR[gr_df$Group=="Local"])))
+  print(paste("Distant GR: ", mean(gr_df$GR[gr_df$Group=="Dist"])))
+  
+  #DBK
+  print(paste("Local DBK: ", mean(dbk_df$DBK[dbk_df$Group=="Local"])))
+  print(paste("Distant DBK: ", mean(dbk_df$DBK[dbk_df$Group=="Dist"])))
+  
+  #Mort
+  print(paste("Local Mort: ", mean(mort_df$Mort[mort_df$Group=="Local"])))
+  print(paste("Distant Mort: ", mean(mort_df$Mort[mort_df$Group=="Dist"])))
+
+  # print(paste("Growth in CG cluster:", cg_cl_gr, " and Growth in far cluster:", o_cl_gr))
+  # print(paste("Growth SE in CG cluster:", cg_cl_gr_se, " and Growth SEin far cluster:", o_cl_gr_se))
+  # print(paste("Dieback in CG cluster:", cg_cl_dbk, " and Dieback in far cluster:", o_cl_dbk))
+  # print(paste("Dieback SE in CG cluster:", cg_cl_dbk_se, " and Dieback SE in far cluster:", o_cl_dbk_se))
+  # print(paste("Mortality in CG cluster:", cg_cl_mort, " and Mortality in far cluster:", o_cl_mort))
+  # print(paste("Mortality SE in CG cluster:", cg_cl_mort_se, " and Mortality SE in far cluster:", o_cl_mort_se))
+  
+  #output_mat[s,] <- c(cg_cl_gr, cg_cl_gr_se, o_cl_gr, o_cl_gr_se, 
+  #                    cg_cl_dbk, cg_cl_dbk_se, o_cl_dbk, o_cl_dbk_se, 
+  #                    cg_cl_mort, cg_cl_mort_se, o_cl_mort, o_cl_mort_se)
+  
+  write.csv(gr_df, print(paste("../02Lvl1Processed/060721GrowthClust_",sites[s], ".csv", sep="")))
+  write.csv(dbk_df, print(paste("../02Lvl1Processed/060721DBKClust_",sites[s], ".csv", sep="")))
+  write.csv(mort_df, print(paste("../02Lvl1Processed/060721MortClust_",sites[s], ".csv", sep="")))
+}
+
+write.csv(p_val_df, "../02Lvl1Processed/060821LocalDistant_pvals.csv")
+```
+
+##Turn it into a figure
+
+the problem here is that you have different local and distant families at each site so you would have to add a column and fill that column differently at each site, then use that to plot across years 
+
+```{r}
+my_comparisons <- list(c("Distant", "Local"))
+
+#GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+#condata <- IndivCond_final(sitesdata, sites)
+
+gr_allyrs <- rbindlist(GrowthRates)
+con_allyrs <- rbindlist(condata)
+
+gr_allyrs$Group <- rep(0, length(gr_allyrs[,1]))
+con_allyrs$Group <- rep(0, length(con_allyrs[,1]))
+
+sts <- c("PH", "PV", "SF", "SO")
+
+PHloc <- c("BC3", "BC6","BC8","BR3","BR7","CB1","CL1","CR2","CR3","CR4","FB3","FB9","FW10","FW3",
+           "KM1","KM10", "OH1","OL1","PA1", "PA3","PA4","VI3","VI4", "VI5")
+PHdist <- c("CA3", "CA4", "CC2", "CC4", "CC7", "LA10", "LA13", "LA5", "LA8", "SA5", "SA7", "SA8", "SC4", "SR2", "SR3")
+
+PVloc <- c("BC3", "BC6","BC8","BR3","BR7","CB1","CL1","CR2","CR3","CR4","FB3","FB9","FW10","FW3",
+           "KM1","KM10", "OH1","OL1","PA1", "PA3","PA4","VI3","VI4", "VI5")
+PVdist <- c("CA3", "CA4", "CC2", "CC4", "CC7", "LA10", "LA13", "LA5", "LA8", "SA5", "SA7", "SA8", "SC4", "SR2", "SR3")
+
+SFloc <- c("AK3", "AK6", "AK9", "BR3", "OR1", "VE10", "VE5", "VE7", "WL3", 
+           "WL8", "WV2", "WV6", "ZE1", "ZE4", "ZE6")
+SFdist <- c("BL1", "BL2", "BL3", "CA3", "CA4", "CC2", "CC4", "CC7", "GA1", "GA2", "GA3", "HP1", "LA10", "LA13", "LA5", "LA8", "RV3", "RV4", "RV8", "SA5", "SA7", "SA8", "SC4", "SR2", "SR3")
+
+SOloc <- c("BL1","BL2","BL3","CA3", "CA4","CC2","CC4","CC7","GA2","HP1","LA10","LA13","LA5","LA8",
+           "RV3","RV4",  "RV8","SA5","SA7","SA8","SC4","SR2","SR3" )
+SOdist <- c("AK3", "AK6", "AK9","OR1","VE10","VE5","VE7","WL3","WL8", "WV2","WV6","ZE1","ZE4","ZE6" )
+
+for (s in 1:4){ #sites
+  
+  gr_rws <- c(gr_allyrs$Site == sts[s])
+  mort_rws <- c(con_allyrs$Site == sts[s])
+  
+  if(s == 1){
+    
+    GRst_inrws <- c(gr_allyrs$Family[gr_rws] %in% PHloc)
+    GRst_outrws <- c(gr_allyrs$Family[gr_rws] %in% PHdist)
+    
+    Mortst_inrws <- c(con_allyrs$Family[mort_rws] %in% PHloc)
+    Mortst_outrws <- c(con_allyrs$Family[mort_rws] %in% PHdist)
+    
+  } else if (s == 2){
+    
+    GRst_inrws <- c(gr_allyrs$Family[gr_rws] %in% PVloc)
+    GRst_outrws <- c(gr_allyrs$Family[gr_rws] %in% PVdist)
+    
+    Mortst_inrws <- c(con_allyrs$Family[mort_rws] %in% PVloc)
+    Mortst_outrws <- c(con_allyrs$Family[mort_rws] %in% PVdist)
+    
+    
+  } else if (s == 3){
+    
+    GRst_inrws <- c(gr_allyrs$Family[gr_rws] %in% SFloc)
+    GRst_outrws <- c(gr_allyrs$Family[gr_rws] %in% SFdist)
+    
+    Mortst_inrws <- c(con_allyrs$Family[mort_rws] %in% SFloc)
+    Mortst_outrws <- c(con_allyrs$Family[mort_rws] %in% SFdist)
+    
+  } else if (s == 4){
+    
+    GRst_inrws <- c(gr_allyrs$Family[gr_rws] %in% SOloc)
+    GRst_outrws <- c(gr_allyrs$Family[gr_rws] %in% SOdist)
+    
+    Mortst_inrws <- c(con_allyrs$Family[mort_rws] %in% SOloc)
+    Mortst_outrws <- c(con_allyrs$Family[mort_rws] %in% SOdist)
+    
+    
+  }
+  
+    gr_allyrs$Group[gr_rws][GRst_inrws] <- "Local"
+    gr_allyrs$Group[gr_rws][GRst_outrws] <- "Distant"
+    
+    con_allyrs$Group[mort_rws][Mortst_inrws] <- "Local"
+    con_allyrs$Group[mort_rws][Mortst_outrws] <- "Distant"
+  
+  
+}
+
+
+p_gr <- ggplot(gr_allyrs, aes(x=Group, y=TotGrowth, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Local", "Distant")) + 
+  scale_fill_brewer(palette="Greys") +
+  xlab("") + ylab("Total Growth (cm)") + ggtitle("A")   
+  #stat_compare_means(method = "anova", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
+
+p_dbk <- ggplot(gr_allyrs, aes(x=Group, y=AmntDieback, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Local", "Distant"))+ 
+  scale_fill_brewer(palette="Greys") +
+  xlab("") + ylab("Dieback (cm)") + ggtitle("B")  
+  #stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
+
+p_mort <- ggplot(con_allyrs, aes(x=Group, y=PercDead, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Local", "Distant")) + 
+  scale_fill_brewer(palette="Greys") +
+  xlab("") + ylab("Percent Mortality") + ggtitle("B") 
+  #stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(100, 110, 120, 130, 140, 150))
+
+print(p_gr)
+#print(p_dbk)
+print(p_mort)
+
+grid.arrange(p_gr, p_mort, nrow = 2)
+
+```
+
+
+##Correction for multiple comparisons
+
+```{r bonferroni}
+##reading in the csv you created before
+p_val_df <- read.csv("../02Lvl1Processed/060821LocalDistant_pvals.csv")
+
+adjusted <- p.adjust(p_val_df$o_pval, method = "bonferroni", n = length(p_val_df$o_pval))
+p_val_df$a_pval <- adjusted
+
+write.csv(p_val_df, "../02Lvl1Processed/060821LocalDistant_pvals.csv")
+```
+
+
+##some WV families
+
+```{r}
+GrowthRates = PercGrowth_byTree(sitesdata, years, sites)
+condata <- IndivCond_final(sitesdata, sites)
+
+WVFams <- c("VE10", "VE5","VE7", "ZE1", "ZE4", "ZE6", "WL3", "WL8")
+
+output_mat <- as.data.frame(matrix(0, nrow=4, ncol=8))
+names(output_mat) <- c("GR", "GR_SE", "WV_GR", "WV_GR_SE", "Mort", "Mort_SE", "WV_Mort", "WV_Mort_SE")
+
+for (s in 1:4){ #sites
+  
+  site <- sites[s] #cg sites
+  
+  ##GET THE AVERAGES
+  site_GR <- GrowthRates[[s]]
+  site_Mort <- condata[[s]]
+  
+  ##Growth
+  ##Growth Rate
+  GR_total <- mean(na.omit(site_GR$TotGrowth))
+  GR_total_se <- sd(na.omit(site_GR$TotGrowth))/sqrt(length(na.omit(site_GR$TotGrowth)))
+  
+  GR_WV <- mean(na.omit(site_GR$TotGrowth[site_GR$Family %in% WVFams]))
+  GR_WV_se <- sd(na.omit(site_GR$TotGrowth[site_GR$Family %in% WVFams]))/sqrt(length(na.omit(site_GR$TotGrowth[site_GR$Family %in% WVFams])))
+  
+  ##Mortality
+  Mort_total <- mean(na.omit(site_Mort$PercDead))
+  Mort_total_se <- sd(na.omit(site_Mort$PercDead))/sqrt(length(na.omit(site_Mort$PercDead)))
+  
+  Mort_WV <- mean(na.omit(site_Mort$PercDead[site_Mort$Family %in% WVFams]))
+  Mort_WV_se <- sd(na.omit(site_Mort$PercDead[site_Mort$Family %in% WVFams]))/sqrt(length(na.omit(site_Mort$PercDead[site_Mort$Family %in% WVFams])))
+  
+  output_mat[s,] <- c(GR_total, GR_total_se, GR_WV, GR_WV_se, Mort_total, Mort_total_se, Mort_WV, Mort_WV_se)
+} 
+```
+
+##Phenology + Other Variables
+
+```{r phen + others}
+#condata <- IndivCond_final(sitesdata, sites)
+#GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+#PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
+
+ctrl <- lmeControl(opt='optim')
+
+p_dat <- as.data.frame(aggregate(PhenData[,11], list(PhenData$Name), mean))
+names(p_dat) <- c("Family", "BE")
+p_dat$BE2 <- (p_dat$BE)^2
+
+for (s in c(1:4)){
+  
+  st <- sites[s]
+  gr <- GrowthRates[[s]]
+  mort <- condata[[s]]
+  
+  gr_p <- na.omit(merge(gr, p_dat, by="Family"))
+  mort_p <- na.omit(merge(mort, p_dat, by="Family"))
+  
+  ##so you know where you are
+  print(paste("Data Analysis for", st))
+  
+  ##Linear Regression
+  lm_gr <- lme(TotGrowth ~ BE2 + BE, random = ~1|Block, data = gr_p, na.action = na.omit, control = ctrl, method="ML")
+  #lm_gr <- lm(TotGrowth ~ BE2 + BE, data = gr_p)
+  #print(summary(lm_gr))
+  reg_sum <- summary(lm_gr)
+  reg_r2 <- r.squaredGLMM(lm_gr) 
+  reg_int <- intervals(lm_gr, which = "fixed")
+  print(reg_r2)
+  print(reg_int)
+  
+  lm_dbk <- lme(AmntDieback~ BE2 + BE, random = ~1|Block, data = gr_p, na.action = na.omit, control = ctrl, method="ML")
+  #lm_dbk <- lm(AmntDieback ~ BE2 + BE, data = gr_p)
+  #print(summary(lm_dbk))
+  reg_sum <- summary(lm_dbk)
+  reg_r2 <- r.squaredGLMM(lm_dbk) 
+  reg_int <- intervals(lm_dbk, which = "fixed")
+  print(reg_r2)
+  print(reg_int)
+  
+  lm_mort <- glmer(PercDead ~ BE2 + BE + (1|Block), data = mort_p, family="binomial", 
+                   control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)), weights = Total)
+  #lm_mort <- lm(PercDead ~ BE2 + BE, data = mort_p)
+  m_summ <- summary(lm_mort)
+  reg_r2 <- r.squaredGLMM(lm_mort)
+  reg_int <- m_summ$coefficients
+  
+  print(reg_r2)
+  print(reg_int)
+  
+}
+
+
+```
+
+##Dieback
+```{r dieback}
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
+
+PH <- GrowthRates[[1]]
+PV <- GrowthRates[[2]]
+SF <- GrowthRates[[3]]
+SO <- GrowthRates[[4]]
+
+##PH - Slope
+PH_df <- PH
+PH_df$Slope2 <- (PH$Slope)^2
+PH_reg <- mixed_model(AmntDieback ~ Slope + Slope2, random = ~1|Block, 
+            data = PH_df, family = hurdle.lognormal(), zi_fixed = ~1, iter_EM = 0)
+
+PH_ints <- confint(PH_reg)
+
+##PV - ElevDist
+PV_df <- PV
+PV_df$ElevDist2 <- (PV$ElevDist)^2
+PV_reg <- mixed_model(AmntDieback ~ ElevDist + ElevDist2, random = ~1|Block, 
+            data = PV_df, family = hurdle.lognormal(), zi_fixed = ~1, iter_EM = 0)
+
+PV_ints <- confint(PV_reg)
+
+##SF - Ecoregion + ElevDist
+SF_df <- SF
+SF_df$ElevDist2 <- (SF$ElevDist)^2
+SF_df$Ecoregion <- relevel(as.factor(SF_df$Ecoregion), ref="WIVA")
+SF_reg <- mixed_model(AmntDieback ~ Ecoregion + ElevDist + ElevDist2, random = ~1|Block, 
+            data = SF_df, family = hurdle.lognormal(), zi_fixed = ~1, iter_EM = 0)
+SF_ints <- confint(SF_reg)
+
+##SO - ElevDist + eFFP + DD5_sp
+SO_df <- SO
+SO_df$ElevDist2 <- (SO$ElevDist)^2
+SO_df$eFFP2 <- (SO$eFFP)^2
+SO_df$DD.5.sp2 <- (SO$DD.5.sp)^2
+SO_reg <- mixed_model(AmntDieback ~ ElevDist + ElevDist2 + eFFP + eFFP2 + DD.5.sp + DD.5.sp2, random = ~1|Block, 
+            data = SO_df, family = hurdle.lognormal(), zi_fixed = ~1, iter_EM = 0)
+SO_ints <- confint(SO_reg)
+
+#Store Values
+num_rws <- 2 + 2 + 8 + 6
+sto_nms <- c("Site", "DepVar", "IndepVar", "Lower", "Estimates", "Upper")
+sto_mat <- as.data.frame(matrix(0, ncol=length(sto_nms), nrow = num_rws))
+names(sto_mat) <- sto_nms
+
+PH_rws <- c(1,2)
+PV_rws <- c(3,4)
+SF_rws <- 5:12
+SO_rws <- 13:18
+
+sto_mat$DepVar <- rep("Dieback", num_rws)
+
+##PH
+sto_mat$Site[PH_rws] <- rep("PH", 2)
+sto_mat$IndepVar[PH_rws] <- rownames(PH_ints)[c(2,3)]
+sto_mat$Lower[PH_rws] <- PH_ints[c(2,3),1]
+sto_mat$Estimates[PH_rws] <- PH_ints[c(2,3),2]
+sto_mat$Upper[PH_rws] <- PH_ints[c(2,3), 3]
+
+##PV
+sto_mat$Site[PV_rws] <- rep("PV", 2)
+sto_mat$IndepVar[PV_rws] <- rownames(PV_ints)[c(2,3)]
+sto_mat$Lower[PV_rws] <- PV_ints[c(2,3),1]
+sto_mat$Estimates[PV_rws] <- PV_ints[c(2,3),2]
+sto_mat$Upper[PV_rws] <- PV_ints[c(2,3), 3]
+
+##SF
+sto_mat$Site[SF_rws] <- rep("SF", 8)
+sto_mat$IndepVar[SF_rws] <- rownames(SF_ints)[c(2:9)]
+sto_mat$Lower[SF_rws] <- SF_ints[c(2:9),1]
+sto_mat$Estimates[SF_rws] <- SF_ints[c(2:9),2]
+sto_mat$Upper[SF_rws] <- SF_ints[c(2:9), 3]
+
+##SO
+sto_mat$Site[SO_rws] <- rep("SO", 6)
+sto_mat$IndepVar[SO_rws] <- rownames(SO_ints)[c(2:7)]
+sto_mat$Lower[SO_rws] <- SO_ints[c(2:7),1]
+sto_mat$Estimates[SO_rws] <- SO_ints[c(2:7),2]
+sto_mat$Upper[SO_rws] <- SO_ints[c(2:7), 3]
+
+write.csv(sto_mat,"040621Dieback_intervals.csv")
+
+```
+
+
+##Phenology - Table
+```{r phen table}
+
+ctrl <- lmeControl(opt='optim')
+
+PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
+
+PhenData$Ecoregion <- relevel(as.factor(PhenData$Ecoregion), ref="WIVA")
+
+phen_reg <- lme(Bud.Elongating ~ Ecoregion + Long + Elev + eFFP + MSP + Slope + Aspect + DD.5.sp, random = ~1|Block, data = PhenData, na.action = na.omit, control = ctrl, method="ML")
+
+summary(phen_reg)
+
+
+
+```

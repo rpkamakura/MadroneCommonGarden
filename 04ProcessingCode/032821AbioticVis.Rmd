@@ -1,0 +1,315 @@
+---
+title: "AbioticVis"
+author: "RPK"
+date: "August 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(survival)
+library(nlme)
+library(plotly)
+
+source("032521PerSiteAnalys.R")
+
+setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+
+options(stringsAsFactors = FALSE)
+
+#Names
+years <- c(12, 13, 14, 15)
+
+#Ecoregion data
+ecoregdat <- read.csv("EcoregionData.csv")
+ecoregions <- unique(ecoregdat$EcoregionShort)
+sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
+
+#Sources
+sources <- unique(ecoregdat$Source)
+
+##Get the full data files
+pertfiles <- list("0503PVFulldata.csv", "0503PHFulldata.csv", "0503SFFulldata.csv", "0503SOFulldata.csv")
+sitesdata <- lapply(pertfiles,read.csv)
+names(sitesdata) <- sites
+
+
+locandclim <- read.csv("LocandClim_sa.csv")
+
+a <- length(locandclim[,1])
+cg_locandclim <- locandclim[c((a-3):a),]
+
+
+```
+
+
+#Distance
+
+```{r}
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites) #if you don't want it averaged, use IndivHeights
+
+#For each site:
+iter = 0
+for (sitedata in GrowthRates){
+  
+  iter = iter + 1
+  
+  ##Dist
+  dist_plot <- ggplot(sitedata, aes(Dist)) + geom_histogram(binwidth=10) + 
+    geom_vline(xintercept=0, color="red") + 
+    labs(title = paste("Dist by Family at", sites[iter]), x="Dist")
+  ##ElevDist
+  elevdist_plot <- ggplot(sitedata, aes(ElevDist)) + geom_vline(xintercept=0, color="red") + 
+    geom_histogram(binwidth=0.05) + labs(title = paste("ElevDist by Family at", sites[iter]), x="ElevDist")
+
+  
+  print(dist_plot)
+  print(elevdist_plot)
+  
+}
+
+
+
+```
+
+
+## Raw Dist and Climate
+```{r}
+
+##Lat/Long
+
+latlong <- ggplot(locandclim, aes(y=Latitude, x=Longitude)) + geom_point() +
+  geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Latitude (ºN)")
+
+##Elevation
+longelev <- ggplot(locandclim, aes(y=Elevation, x=Longitude)) + geom_point() +
+  geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Elevation (m)")
+
+#MSP
+longmsp <- ggplot(locandclim, aes(y=MSP, x=Longitude)) + geom_point() +
+  geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Mean Summer Precipitation (mm)")
+
+##bFFP/eFFP
+
+bandeFFP <- ggplot(locandclim, aes(y=eFFP, x=bFFP)) + geom_point() +
+  geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, vjust = -1, color = "red") +
+  xlab("bFFP (days after Jan. 1)") + ylab("eFFP (days after Jan. 1)")
+
+latlong
+longelev 
+bandeFFP #PV is further to the left and slightly higher
+longmsp
+
+##Need to add PV and PH to the plots
+
+
+##3D plot?
+
+combloc <- plot_ly(x=locandclim$Longitude, y=locandclim$Latitude, z=locandclim$Elevation, type="scatter3d", mode="markers")
+
+latlongelev <- ggplot(locandclim, aes(y=Latitude, x=Longitude, color=Elevation)) + geom_point() +
+  geom_point(data=cg_locandclim, shape=17, size = 3) + 
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Latitude (ºN)") + scale_colour_gradient(low = "white", high = "black")
+
+
+#Just MSP
+msp_hist <- ggplot(locandclim, aes (x=MSP)) + 
+  geom_histogram(binwidth=10, color="black", fill="white") +
+  geom_vline(aes(xintercept=86),
+            color= "#6d6e6e", linetype="dashed", size=1) + 
+  geom_vline(aes(xintercept=193),
+            color="#bbbdbd", linetype="dashed", size=1) +
+  geom_vline(aes(xintercept=182),
+            color="#b5b5b5", linetype="dashed", size=1) +
+  geom_vline(aes(xintercept=189),
+            color="#141414", linetype="dashed", size=1) + 
+  xlab("Mean Summer Precipitation (mm)") + 
+  ylab("Frequency")
+  
+
+```
+
+###Averages
+```{r}
+#GrowthRates should have already been created
+
+Mortdata <- IndivCond_final(sitesdata, sites)
+
+GRlen <- 0
+Mortlen <- 0
+for (st in 1:length(GrowthRates)){
+ GRlen <- GRlen + length(GrowthRates[[st]][,1]) 
+ Mortlen <- Mortlen + length(Mortdata[[st]][,1])
+}
+
+for (st in 1:length(GrowthRates)){
+  if (st==1){
+      
+      curr_len <- length(GrowthRates[[st]][,1])
+      #Overall Model Matrix
+
+      o_cols <- c("Site", "Block","Tree", "Name", "Source", "Ecoregion", "TotGrowth", "AmntDieback")
+      gr_mod <- as.data.frame(matrix(NA, nrow = GRlen, ncol = length(o_cols)))
+      colnames(gr_mod) <- o_cols
+      
+      gr_mod[1:curr_len,1] <- rep(names(GrowthRates)[st], curr_len)
+      gr_mod[1:curr_len,2] <- GrowthRates[[st]][,5]
+      gr_mod[1:curr_len,3] <- GrowthRates[[st]][,6]
+      gr_mod[1:curr_len,4] <- GrowthRates[[st]][,4]
+      gr_mod[1:curr_len,5] <- GrowthRates[[st]][,3]
+      gr_mod[1:curr_len,6] <- GrowthRates[[st]][,2]
+      gr_mod[1:curr_len,7] <- GrowthRates[[st]][,7]
+      gr_mod[1:curr_len,8] <- GrowthRates[[st]][,9]
+
+      prev_end <- curr_len
+      
+    } else { #depending on which site you're on 
+      
+      curr_len <- length(GrowthRates[[st]][,1])
+      curr_end <- prev_end + curr_len
+      
+      ##gr Matrix
+      
+      gr_mod[(prev_end + 1):curr_end,1] <- rep(names(GrowthRates)[st], curr_len)
+      gr_mod[(prev_end + 1):curr_end,2] <- GrowthRates[[st]][,5]
+      gr_mod[(prev_end + 1):curr_end,3] <- GrowthRates[[st]][,6]
+      gr_mod[(prev_end + 1):curr_end,4] <- GrowthRates[[st]][,4]
+      gr_mod[(prev_end + 1):curr_end,5] <- GrowthRates[[st]][,3]
+      gr_mod[(prev_end + 1):curr_end,6] <- GrowthRates[[st]][,2]
+      gr_mod[(prev_end + 1):curr_end,7] <- GrowthRates[[st]][,7]
+      gr_mod[(prev_end + 1):curr_end,8] <- GrowthRates[[st]][,9]
+      
+      
+      prev_end <- curr_end
+    } #depending on which site you're on 
+    
+}
+
+##################MORTALITY DATA
+
+for (st in 1:length(Mortdata)){
+    if (st==1){
+      
+      curr_len <- length(Mortdata[[st]][,1])
+
+      o_cols <- c("Site", "Block", "Name","Source", "Ecoregion", "PercDead")
+      mort_mod <- as.data.frame(matrix(NA, nrow = Mortlen, ncol = length(o_cols)))
+      colnames(mort_mod) <- o_cols
+      
+      mort_mod[1:curr_len,1] <- rep(names(Mortdata)[st], curr_len)
+      mort_mod[1:curr_len,2] <- Mortdata[[st]][,1]
+      mort_mod[1:curr_len,3] <- Mortdata[[st]][,2]
+      mort_mod[1:curr_len,4] <- Mortdata[[st]][,3]
+      mort_mod[1:curr_len,5] <- Mortdata[[st]][,7]
+      mort_mod[1:curr_len,6] <- Mortdata[[st]][,6]
+
+
+      prev_end <- curr_len
+      
+    } else { #depending on which site you're on 
+      
+      curr_len <- length(Mortdata[[st]][,1])
+      curr_end <- prev_end + curr_len
+      
+      ##Overall Matrix
+      
+      mort_mod[(prev_end + 1):curr_end,1] <- rep(names(Mortdata)[st], curr_len)
+      mort_mod[(prev_end + 1):curr_end,2] <- Mortdata[[st]][,1]
+      mort_mod[(prev_end + 1):curr_end,3] <- Mortdata[[st]][,2]
+      mort_mod[(prev_end + 1):curr_end,4] <- Mortdata[[st]][,3]
+      mort_mod[(prev_end + 1):curr_end,5] <- Mortdata[[st]][,7]
+      mort_mod[(prev_end + 1):curr_end,6] <- Mortdata[[st]][,6]
+      
+      
+      prev_end <- curr_end
+    } #depending on which site you're on 
+}
+
+```
+
+##Vis
+
+```{r}
+##Now you have gr_mod and mort_mod
+
+#Mortality
+mort_plot <- ggplot(mort_mod, aes(y=PercDead, x=Site)) + geom_boxplot() +
+  xlab("Site") + ylab("Mortality (fraction of trees per family)") 
+
+ft_mort <- aov(PercDead ~ Site, data=mort_mod)
+pairwise_mort <- TukeyHSD(ft_mort)[[1]] 
+
+mort_plot #just so you can see it 
+pairwise_mort
+
+#The means themselves
+mean(na.omit(mort_mod$PercDead[mort_mod$Site=="PuyallupHill"]))
+mean(na.omit(mort_mod$PercDead[mort_mod$Site=="PuyallupValley"]))
+mean(na.omit(mort_mod$PercDead[mort_mod$Site=="Starker"]))
+mean(na.omit(mort_mod$PercDead[mort_mod$Site=="Sprague"]))
+
+#Total Growth
+tg_plot <- ggplot(gr_mod, aes(y=TotGrowth, x=Site)) + geom_boxplot() +
+  xlab("Site") + ylab("Overall Growth %")
+
+ft_tg <- aov(TotGrowth~ Site, data=gr_mod)
+pairwise_tg <- TukeyHSD(ft_tg)[[1]] 
+
+tg_plot #just so you can see it 
+pairwise_tg
+
+#The means themselves
+mean(na.omit(gr_mod$TotGrowth[gr_mod$Site=="PuyallupHill"]))
+mean(na.omit(gr_mod$TotGrowth[gr_mod$Site=="PuyallupValley"]))
+mean(na.omit(gr_mod$TotGrowth[gr_mod$Site=="Starker"]))
+mean(na.omit(gr_mod$TotGrowth[gr_mod$Site=="Sprague"]))
+
+#Dieback
+dbk_plot <- ggplot(gr_mod, aes(y=AmntDieback, x=Site)) + geom_boxplot() +
+  xlab("Site") + ylab("Total Dieback %")
+
+ft_dbk <- aov(AmntDieback ~ Site, data=gr_mod)
+pairwise_dbk <- TukeyHSD(ft_dbk)[[1]] 
+
+dbk_plot #just so you can see it 
+pairwise_dbk
+
+#The means themselves
+mean(gr_mod$AmntDieback[gr_mod$Site=="PuyallupHill"])
+mean(gr_mod$AmntDieback[gr_mod$Site=="PuyallupValley"])
+mean(gr_mod$AmntDieback[gr_mod$Site=="Starker"])
+mean(gr_mod$AmntDieback[gr_mod$Site=="Sprague"])
+  
+
+```
+
+
+```{r correlations}
+#locandclim <- read.csv("LocandClim_sa.csv")
+
+##linear regression
+b_eFFP <- lm(eFFP ~ bFFP, locandclim)
+b_FFP <- lm(FFP ~ bFFP, locandclim)
+e_FFP <- lm(FFP ~ eFFP, locandclim)
+
+summary(b_eFFP)
+summary(b_FFP)
+summary(e_FFP)
+
+plot(locandclim$bFFP, locandclim$eFFP, xlab="Start of Frost Free Period (Julian date)", ylab= "End of Frost Free Period (Julian date)")
+abline(lm(eFFP ~ bFFP, locandclim), col="grey")
+
+plot(locandclim$bFFP, locandclim$FFP, xlab="Start of Frost Free Period (Julian date)", ylab= "Length of Frost Free Period (days)")
+abline(lm(FFP ~ bFFP, locandclim), col="grey")
+
+plot(locandclim$eFFP, locandclim$FFP, ylab="Length of Frost Free Period (days)", xlab= "End of Frost Free Period (Julian date)")
+abline(lm(FFP ~ eFFP, locandclim), col="grey")
+
+```

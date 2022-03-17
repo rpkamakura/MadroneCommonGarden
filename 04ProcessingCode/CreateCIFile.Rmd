@@ -1,0 +1,120 @@
+---
+title: "CI_FileCreation"
+author: "RPK"
+date: "June 4, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(dplyr)
+
+setwd("C:/Users/renat/Mirror/Madrone2/Data Analysis") #easier directory to work from
+
+options(stringsAsFactors = FALSE)
+
+
+pertfiles <- list("TGR_BestParamResults4.csv", "ADBK_BestParamResults4.csv","Mort_BestParamResults4.csv", "Phen_BestParamResults.csv")
+
+param_files <- lapply(pertfiles, read.csv)
+names(param_files) <- c("TotGrowth", "AmntDieback", "Mortality", "Phenology")
+
+```
+
+##Extract some general CIs
+
+The point of this is to give you some easier data to use for compact data analysis. 
+
+```{r}
+for (p in 1:length(param_files)){
+  param_res <- param_files[[p]]
+  dep_nm <- names(param_files)[p]
+  
+  ##Mortality and Growth Rate
+  if ("Site" %in% names(param_res)) { #either growth rate or mort
+    div_ind <- match("Site", names(param_res))
+    i_vars <- c("Ecoregion", "Dist", "NSDist1", "NSDist2","EWDist1", "EWDist2","ElevDist1", "ElevDist2","bFFP1", "bFFP2","eFFP1", "eFFP2","FFP1","FFP2")
+    c_names <- c("DepVar", "Site", "TotNRegs", "Spec_Indep", "NumRegs", "AllEst", "Low95", "High95", "NumSigRegs", "SigEst", "SigLow", "SigHigh")
+    
+    CI_mat <- as.data.frame(matrix(0, nrow = 19*6, ncol = length(c_names)))
+    colnames(CI_mat) <- c_names
+    
+  #Phenology
+  } else {
+    div_ind <- match("Dep", names(param_res))
+    i_vars <- c("Ecoregion", "Lat", "Long", "Elev", "bFFP", "eFFP", "FFP")
+    c_names <- c("DepVar", "TotNRegs", "Spec_Indep", "NumRegs", "AllEst", "Low95", "High95", "NumSigRegs", "SigEst", "SigLow", "SigHigh")
+    
+    CI_mat <- as.data.frame(matrix(0, nrow = 12*3, ncol = length(c_names)))
+    colnames(CI_mat) <- c_names
+    
+  }
+  
+  
+  ##Shared by both
+  rw_ind <- 0
+  for (div in unique(param_res[,div_ind])){ #divide it up by site or phenological metric (depending on dep_var)
+    
+    div_dat <- param_res[param_res[,div_ind] == div,]
+    tot_regs <- length(unique(div_dat$Overal_Indep))
+    
+    for (indep in unique(div_dat$Spec_Indep)){
+      rw_ind <- rw_ind + 1
+      
+      indep_dat <- div_dat[div_dat$Spec_Indep == indep,]
+      min_low <- min(indep_dat$Lower)
+      max_high <- max(indep_dat$Upper)
+      mean_est <- mean(indep_dat$Estimate)
+      tot_numreg <- length(indep_dat[,1])
+      
+      sig_dat <- indep_dat[indep_dat$P_val <= 0.05, ]
+      
+      if (sum(indep_dat$P_val <= 0.05) > 1) { #how many sig results you have
+        min_sig <- min(sig_dat$Lower)
+        max_sig <- max(sig_dat$Upper)
+        est_sig <- mean(sig_dat$Estimate)
+        sig_numreg <- sum(indep_dat$P_val <= 0.05)
+        
+      } else if (sum(indep_dat$P_val <= 0.05) == 1) {
+        min_sig <- sig_dat$Lower
+        max_sig <- sig_dat$Upper
+        est_sig <- sig_dat$Estimate
+        sig_numreg <- 1
+        
+      } else { #no sig results
+        min_sig <- NA
+        max_sig <- NA
+        est_sig <- NA
+        sig_numreg <- 0
+      } #Sig loop
+      
+      ##Put them into a storage matrix
+
+      CI_mat$DepVar[rw_ind] <- indep_dat$Dep[1]
+      CI_mat$TotNRegs[rw_ind] <- tot_regs
+      CI_mat$NumRegs[rw_ind] <- tot_numreg
+      CI_mat$NumSigRegs[rw_ind] <- sig_numreg
+      CI_mat$Spec_Indep[rw_ind] <- indep
+      CI_mat$AllEst[rw_ind] <- mean_est
+      CI_mat$Low95[rw_ind] <- min_low
+      CI_mat$High95[rw_ind] <- max_high
+      CI_mat$SigEst[rw_ind] <- est_sig
+      CI_mat$SigLow[rw_ind] <- min_sig
+      CI_mat$SigHigh[rw_ind] <- max_sig
+        
+      if ("Site" %in% colnames(param_res)){
+        CI_mat$Site[rw_ind] <- div
+      }
+      
+    } #indep var loop
+    
+  } #Division loop
+  
+  write.csv(CI_mat, print(paste(dep_nm, "_BestParamCIs.csv")))
+  
+} #Overall dataset loop
+
+```

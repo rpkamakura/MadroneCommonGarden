@@ -1,0 +1,111 @@
+---
+title: "GenerateRandData"
+author: "Renata Poulton Kamakura"
+date: "3/16/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+
+pertfiles <- list.files(path="./OldRaw", pattern="*.csv", all.files=FALSE,
+	full.names=FALSE)
+
+```
+
+##Generate Random Data
+
+```{r gen rand data}
+
+for (f in 1:length(pertfiles)){
+  
+  filenm <- pertfiles[f]
+  dat <- read.csv(paste("./OldRaw/",filenm, sep=""))
+  dat <- na.omit(dat)
+  
+  
+  
+  if (filenm != "033121SF_Phen_AlldataRaw.csv"){
+    newdat <- dat[,1:7]
+
+    htMean <- mean(na.omit(as.numeric(dat$ht)))
+    htSd <- sd(na.omit(as.numeric(dat$ht)))
+    
+    numCond <- length(dat$cond)
+    numHt <- length(dat$ht)
+    
+    p1 <- sum(na.omit(dat$cond == 1))/(numCond + 1)
+    p2 <- sum(na.omit(dat$cond == 2))/(numCond + 1)
+    p3 <- sum(na.omit(dat$cond == 3))/(numCond + 1)
+    p4 <- sum(na.omit(dat$cond == 4))/(numCond + 1)
+    
+    if (p1 == 0){
+      p1 <- 1/numCond
+      
+    } else if (p2 == 0){
+      p2 <- 1/numCond
+      
+    } else if (p3 == 0){
+      p3 <- 1/numCond
+      
+    } else if (p4 == 0){
+      p4 <- 1/numCond
+    }
+    
+    x <- runif(numCond, 0, 1)
+    for (n in 1:length(x)){
+      if (x[n] <= p1){
+        newdat$cond[n] = 1
+        
+      } else if (x[n] <= (p1 + p2)){
+        newdat$cond[n] = 2
+        
+      } else if (x[n] <= (p1 + p2 + p3)){
+        newdat$cond[n] = 3
+        
+      } else {
+        
+        newdat$cond[n] = 4
+      }
+    }
+    
+    newdat$ht <- round(rnorm(numHt, mean=htMean, sd=htSd),0)
+    newdat$ht[newdat$ht <= 0] <- 1
+    
+    write.csv(newdat, filenm)
+    
+    
+    
+  } else { #For the phenology file 
+    newdat <- dat[,c("Block", "Tree", "Source", "Name", "ht16", "Bud.Swollen", "Bud.Elongating", "Leaves.emerging", "Ecoregion", "Lat", "Long", "Elev", "eFFP", "MSP", "Aspect", "Slope", "DD.5.sp")]
+
+    htMean <- mean(na.omit(dat$ht16))
+    htSd <- sd(na.omit(dat$ht16))
+    bsMean <- mean(na.omit(dat$Bud.Swollen))
+    bsSd <- sd(na.omit(dat$Bud.Swollen))
+    beMean <- mean(na.omit(dat$Bud.Elongating))
+    beSd <- sd(na.omit(dat$Bud.Elongating))
+    leMean <- mean(na.omit(dat$Leaves.emerging))
+    leSd <- sd(na.omit(dat$Leaves.emerging))
+    
+    numHt <- length(dat$ht)
+    
+    newdat$ht16 <- round(rnorm(numHt, mean=htMean, sd=htSd),0)
+    newdat$ht16[newdat$ht16 <= 0] <- 1
+    newdat$Bud.Swollen <- round(rnorm(numHt, mean=bsMean, sd=bsSd),0)
+    newdat$Bud.Swollen[newdat$Bud.Swollen <= 0] <- 1
+    newdat$Bud.Elongating <- round(rnorm(numHt, mean=beMean, sd=beSd),0)
+    newdat$Bud.Elongating[newdat$Bud.Elongating <= 0] <- 2
+    newdat$Leaves.emerging <- round(rnorm(numHt, mean=leMean, sd=leSd),0)
+    newdat$Leaves.emerging[newdat$Leaves.emerging <= 0] <- 3
+    
+    write.csv(newdat, filenm)
+    
+    
+  }
+  
+}
+
+
+```

@@ -1,0 +1,614 @@
+---
+title: "Analysis Draft 3 Multiple Nonlinear Regression"
+author: "RPK"
+date: "March 25, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(survival)
+library(nlme)
+library(psychometric)
+library(MASS)
+library(gnm)
+library(MuMIn)
+source("032521PerSiteAnalys.R")
+source("032521RegressionFuncs.R")
+
+setwd("../Basic Datasets") #easier directory to work from
+
+options(stringsAsFactors = FALSE)
+
+#Names
+years <- c(12, 13, 14, 15)
+#years <- c(14, 15)
+sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
+
+#Ecoregion data
+ecoregdat <- read.csv("EcoregionData.csv")
+ecoregions <- unique(ecoregdat$EcoregionShort)
+
+#Sources
+sources <- unique(ecoregdat$Source)
+
+##Get the full data files
+pertfiles <- list("033121PVFulldata.csv", "033121PHFulldata.csv", "033121SFFulldata.csv", "033121SOFulldata.csv")
+sitesdata <- lapply(pertfiles,read.csv)
+names(sitesdata) <- sites
+```
+
+The most thorough way to do this is to iterate through every possible combination of variables, look at the AIC values, and pick the ones that are within 2 of the best one
+- to start out, maybe just iterate through all the options and keep all the AIC values
+--then pick the best ones
+---then store the R2 and parameter values for the best ones
+---create average model from those options
+
+Total vars: 8
+
+Combinations
+- 2 vars
+- 3 vars
+- 4 vars
+- 5 vars
+- 6 vars
+- 7 vars
+- 8 vars
+
+
+##Growth Rate
+
+Should be able to save yourself a headache by combining the two. The problem is the variance structure is different between the two 
+
+```{r}
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites) 
+
+ctrl <- lmeControl(opt='optim')
+
+paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP", "DD.5.sp")
+
+functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
+
+func_num <- 1:length(paramlist)
+
+d_vars <- c("TotGrowth", "AmntDieback") #the two variables to look at
+fam <- c("linear", "zeroinfl")
+
+for (gstat in c(1,2)){
+  
+  DepVar_name <- d_vars[gstat] #which of the two you're looking at
+  st_ind = 0
+  f <- fam[gstat]
+  
+  ##############################Iterating over all the sites
+  for (indivstdat in GrowthRates){
+    st_ind = st_ind + 1 #site
+    st = sites[st_ind]
+    
+    #Get rid of ones with incomplete data
+    indivstdat <- indivstdat[complete.cases(indivstdat), ]
+    
+    #storing the AIC values and the parameter names
+    AIC_list <- c()
+    AICnm_list <- c()
+    DepVarInd <- match(DepVar_name, colnames(indivstdat))
+    RandVar <- match("Block", colnames(indivstdat))
+    
+    layer1_nums <- func_num
+    
+    for(num_l1 in func_num){
+      num_iter = match(num_l1, layer1_nums)
+      layer1_nums <- layer1_nums[-num_iter] #ones left to iterate through at this level
+      
+      ##parameters for regression function
+      l1_type <- functype[num_l1] #the type
+      param_ind <- match(paramlist[num_l1], colnames(indivstdat)) #the index for the indep parameter
+      
+      reg1 <- MultReg2(indivstdat, param_ind, DepVarInd, l1_type, RandVar, family = f)
+      
+      AIC_list <- append(AIC_list, summary(reg1[[2]])$AIC)
+      AICnm_list <- c(AICnm_list, paramlist[num_l1])
+          
+      ##If there is nothing left to add
+      if (length(layer1_nums) == 0){
+          break
+        }
+      
+      #Move to layer 2 (two variables) #####################################################################
+      layer2_nums = layer1_nums #so you have a list you can remove things from 
+      for (num_l2 in layer1_nums){
+        num_iter = match(num_l2, layer2_nums)
+        layer2_nums <- layer2_nums[-num_iter]
+        
+        param_n <- c(num_l1, num_l2) #the parameter numbers to use
+        p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+        
+        types <- functype[param_n] #get the parameter types
+        params_ind <- match(paramlist[param_n], colnames(indivstdat))
+        
+        reg2 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+        
+        #Save the AIC values
+        AIC_list <- append(AIC_list, summary(reg2[[2]])$AIC)
+        AICnm_list <-append(AICnm_list, p_fullname)
+        
+        ##If there is nothing left to add
+        if (length(layer2_nums) == 0){
+            break
+        }
+        ##Move to layer 3 (three variables)##################################################
+        layer3_nums = layer2_nums #so you have a list you can remove things from 
+        for(num_l3 in layer2_nums){
+          #Get rid of the new parameter from further iterations  
+          num_iter = match(num_l3, layer3_nums)
+          layer3_nums <- layer3_nums[-num_iter]
+          param_n <- c(num_l1, num_l2, num_l3) #the parameter numbers to use
+
+        
+          p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+          
+          types <- functype[param_n] #get the parameter types
+          params_ind <- match(paramlist[param_n], colnames(indivstdat))
+          
+          reg3 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+          
+          #Save the AIC values
+          AIC_list <- append(AIC_list, summary(reg3[[2]])$AIC)
+          AICnm_list <-append(AICnm_list, p_fullname)
+          
+          
+          ##If there is nothing left to add
+          if (length(layer3_nums) == 0){
+              break
+            }
+          
+          #Move to layer 4 (four variables)#########################################################
+          layer4_nums = layer3_nums #so you have a list you can remove things from 
+          for (num_l4 in layer3_nums){
+            num_iter = match(num_l4, layer4_nums)
+            layer4_nums <- layer4_nums[-num_iter]
+            param_n <- c(num_l1, num_l2, num_l3, num_l4) #the parameter numbers to use
+            
+            #Do the regression
+            
+            p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+            
+            types <- functype[param_n] #get the parameter types
+            params_ind <- match(paramlist[param_n], colnames(indivstdat))
+          
+            reg4 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+            
+            #Save the AIC values
+            AIC_list <- append(AIC_list, summary(reg4[[2]])$AIC)
+            AICnm_list <-append(AICnm_list, p_fullname)
+            
+            
+            ##If there is nothing left to add
+            if (length(layer4_nums) == 0){
+                break
+              }
+            
+            #Move to layer 5 (five variables)#########################################################
+            layer5_nums = layer4_nums #so you have a list you can remove things from 
+            for(num_l5 in layer4_nums){
+              num_iter = match(num_l5, layer5_nums)
+              layer5_nums <- layer5_nums[-num_iter]
+              
+              param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5) #the parameter numbers to use
+              
+              #Do the regression
+              
+              p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+            
+              types <- functype[param_n] #get the parameter types
+                      params_ind <- match(paramlist[param_n], colnames(indivstdat))
+          
+              reg5 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+              
+              #Save the AIC values
+              AIC_list <- append(AIC_list, summary(reg5[[2]])$AIC)
+              AICnm_list <-append(AICnm_list, p_fullname)
+              
+              ##If there is nothing left to add
+              if (length(layer5_nums) == 0){
+                  break
+                }
+                
+              #Move to layer 6######################################################################
+              layer6_nums = layer5_nums #so you have a list you can remove things from 
+              for(num_l6 in layer5_nums){
+                num_iter = match(num_l6, layer6_nums)
+                layer6_nums <- layer6_nums[-num_iter]
+                param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6) #the parameter numbers to use
+                
+                #Do the regression
+                p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+            
+                types <- functype[param_n] #get the parameter types
+                params_ind <- match(paramlist[param_n], colnames(indivstdat))
+          
+                reg6 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+                
+                #Save the AIC values
+                AIC_list <- append(AIC_list, summary(reg6[[2]])$AIC)
+                AICnm_list <-append(AICnm_list, p_fullname)
+                
+                ##If there is nothing left to add
+                if (length(layer6_nums) == 0){
+                  break
+                }
+                
+                #Move to layer 7###################################################################
+                layer7_nums = layer6_nums #so you have a list you can remove things from 
+                
+                for (num_l7 in layer6_nums){
+                  num_iter = match(num_l7, layer7_nums)
+                  layer7_nums <- layer7_nums[-num_iter]
+                  param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6, num_l7) #the parameter numbers
+                  
+                  #Do regression
+                  
+                  p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+            
+                  types <- functype[param_n] #get the parameter types
+                  params_ind <- match(paramlist[param_n], colnames(indivstdat))
+          
+                  reg7 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+          
+                  #Save the AIC values
+                  AIC_list <- append(AIC_list, summary(reg7[[2]])$AIC)
+                  AICnm_list <-append(AICnm_list, p_fullname)
+                  
+                  layer8_nums = layer7_nums
+                  
+                  for (num_l8 in layer7_nums){
+                    num_iter = match(num_l8, layer8_nums)
+                    layer8_nums <- layer8_nums[-num_iter]
+                    param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6, num_l7, num_l8) #the parameter numbers
+                    
+                    #Do regression
+                    
+                    p_fullname <- paste(paramlist[param_n], collapse="_") #get the parameter names
+              
+                    types <- functype[param_n] #get the parameter types
+                    params_ind <- match(paramlist[param_n], colnames(indivstdat))
+            
+                    reg8 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
+            
+                    #Save the AIC values
+                    AIC_list <- append(AIC_list, summary(reg8[[2]])$AIC)
+                    AICnm_list <-append(AICnm_list, p_fullname)
+                  } #end layer 8
+                  
+                  
+                } #end layer 7 
+                
+                
+              } #end layer 6
+              
+            } #end layer 5
+            
+          } #end layer 4
+          
+          
+        } #end layer 3
+        
+      } #end layer 2
+        
+    } #end layer 1
+    
+    print(paste("Results for", st))
+    
+    #To check for errors
+    #print(AIC_list)
+    #print(AICnm_list)
+    
+    min_aic <- min(AIC_list)
+    within2_aic <- AIC_list[AIC_list < (min_aic + 2)]
+    within2_names <- AICnm_list[AIC_list < (min_aic + 2)]
+    
+    print(within2_aic)
+    print(within2_names)
+    
+    if(st=="PuyallupValley"){
+      nrows = length(within2_aic)
+      GR_AICmat <- matrix(NA, nrow=nrows, ncol=3) 
+      colnames(GR_AICmat) <- c("Site", "IndepVars", "AIC")
+      GR_AICmat[,1] <- rep(st, nrows)
+      GR_AICmat[,2] <- within2_names
+      GR_AICmat[,3] <- within2_aic
+      
+    } else {
+      nrows = length(within2_aic)
+      
+      #Rather convoluted way to add the matrices together
+      oldAICmat = GR_AICmat
+      GR_AICmat = matrix(NA, nrow = length(oldAICmat[,1]) + nrows, ncol = length(oldAICmat[1,]))
+      colnames(GR_AICmat) = colnames(oldAICmat)
+      
+      GR_AICmat[,1] <- append(oldAICmat[,1], rep(st, nrows))
+      GR_AICmat[,2] <- append(oldAICmat[,2], within2_names)
+      GR_AICmat[,3] <- append(oldAICmat[,3], within2_aic)
+    }
+      
+    
+  } #end site iteration
+  
+  write.csv(GR_AICmat, print(paste("040221_", DepVar_name, "_BestMultReg.csv", sep='')))
+
+}
+```
+
+##Mortality
+
+```{r}
+library(lme4)
+
+condata <- IndivCond_final(sitesdata, sites)
+
+paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP", "DD.5.sp")
+
+#functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
+
+func_num <- 1:length(paramlist)
+st_ind = 0
+
+
+##############################Iterating over all the sites
+for (indivstdat in condata){
+  st_ind = st_ind + 1 #site
+  st = sites[st_ind]
+  
+  #Get rid of ones with incomplete data (which is mostly the ones that started dead and DE2)
+  indivstdat <- indivstdat[complete.cases(indivstdat), ]
+  
+  #storing the AIC values and the parameter names
+  AIC_list <- c()
+  AICnm_list <- c()
+  DepVarInd <- match("PercDead", colnames(indivstdat))
+  RandVar <- match("Block", colnames(indivstdat))
+  ntrials <- match("Total", colnames(indivstdat))
+  
+  layer1_nums <- func_num
+  
+  for(num_l1 in func_num){
+    num_iter = match(num_l1, layer1_nums)
+    layer1_nums <- layer1_nums[-num_iter] #ones left to iterate through at this level
+    
+    ##parameters for regression function
+    #l1_type <- functype[num_l1] #the type
+    param_ind <- match(paramlist[num_l1], colnames(indivstdat)) #the index for the indep parameter
+    
+    reg1 <- MultReg3(indivstdat, param_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+    
+    AIC_list <- append(AIC_list, AIC(reg1[[2]]))
+    AICnm_list <- c(AICnm_list, paramlist[num_l1])
+        
+    ##If there is nothing left to add
+    if (length(layer1_nums) == 0){
+        break
+      }
+    
+    #Move to layer 2 (two variables) #####################################################################
+    layer2_nums = layer1_nums #so you have a list you can remove things from 
+    for (num_l2 in layer1_nums){
+      num_iter = match(num_l2, layer2_nums)
+      layer2_nums <- layer2_nums[-num_iter]
+      
+      params_n <- c(num_l1, num_l2) #the parameter numbers to use
+      p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+      
+      #types <- functype[params_n] #get the parameter types
+      params_ind <- match(paramlist[params_n], colnames(indivstdat))
+      
+      reg2 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+      
+      #Save the AIC values
+      AIC_list <- append(AIC_list, AIC(reg2[[2]]))
+      AICnm_list <-append(AICnm_list, p_fullname)
+      
+      ##If there is nothing left to add
+      if (length(layer2_nums) == 0){
+          break
+      }
+      ##Move to layer 3 (three variables)##################################################
+      layer3_nums = layer2_nums #so you have a list you can remove things from 
+      for(num_l3 in layer2_nums){
+        #Get rid of the new parameter from further iterations  
+        num_iter = match(num_l3, layer3_nums)
+        layer3_nums <- layer3_nums[-num_iter]
+        params_n <- c(num_l1, num_l2, num_l3) #the parameter numbers to use
+      
+        p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+        
+        #types <- functype[params_n] #get the parameter types
+        params_ind <- match(paramlist[params_n], colnames(indivstdat))
+        
+        reg3 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+        
+        #Save the AIC values
+        AIC_list <- append(AIC_list, AIC(reg3[[2]]))
+        AICnm_list <-append(AICnm_list, p_fullname)
+        
+        
+        ##If there is nothing left to add
+        if (length(layer3_nums) == 0){
+            break
+          }
+        
+        #Move to layer 4 (four variables)#########################################################
+        layer4_nums = layer3_nums #so you have a list you can remove things from 
+        for (num_l4 in layer3_nums){
+          num_iter = match(num_l4, layer4_nums)
+          layer4_nums <- layer4_nums[-num_iter]
+          params_n <- c(num_l1, num_l2, num_l3, num_l4) #the parameter numbers to use
+          
+          #Do the regression
+          
+          p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+          
+          #types <- functype[params_n] #get the parameter types
+          params_ind <- match(paramlist[params_n], colnames(indivstdat))
+        
+          reg4 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+          
+          #Save the AIC values
+          AIC_list <- append(AIC_list, AIC(reg4[[2]]))
+          AICnm_list <-append(AICnm_list, p_fullname)
+          
+          
+          ##If there is nothing left to add
+          if (length(layer4_nums) == 0){
+              break
+            }
+          
+          #Move to layer 5 (five variables)#########################################################
+          layer5_nums = layer4_nums #so you have a list you can remove things from 
+          for(num_l5 in layer4_nums){
+            num_iter = match(num_l5, layer5_nums)
+            layer5_nums <- layer5_nums[-num_iter]
+            
+            params_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5) #the parameter numbers to use
+
+            #Do the regression
+            
+            p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+          
+            #types <- functype[params_n] #get the parameter types
+                    params_ind <- match(paramlist[params_n], colnames(indivstdat))
+        
+            reg5 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+            
+            #Save the AIC values
+            AIC_list <- append(AIC_list, AIC(reg5[[2]]))
+            AICnm_list <-append(AICnm_list, p_fullname)
+            
+            ##If there is nothing left to add
+            if (length(layer5_nums) == 0){
+                break
+              }
+              
+            #Move to layer 6######################################################################
+            layer6_nums = layer5_nums #so you have a list you can remove things from 
+            for(num_l6 in layer5_nums){
+              num_iter = match(num_l6, layer6_nums)
+              layer6_nums <- layer6_nums[-num_iter]
+              params_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6) #the parameter numbers to use
+
+              
+              #Do the regression
+              p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+          
+              #types <- functype[params_n] #get the parameter types
+              params_ind <- match(paramlist[params_n], colnames(indivstdat))
+        
+              reg6 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+              
+              #Save the AIC values
+              AIC_list <- append(AIC_list, AIC(reg6[[2]]))
+              AICnm_list <-append(AICnm_list, p_fullname)
+              
+              ##If there is nothing left to add
+              if (length(layer6_nums) == 0){
+                break
+              }
+              
+              #Move to layer 7###################################################################
+              layer7_nums = layer6_nums #so you have a list you can remove things from 
+              
+              for (num_l7 in layer6_nums){
+                num_iter = match(num_l7, layer7_nums)
+                layer7_nums <- layer7_nums[-num_iter]
+                params_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6, num_l7) #the parameter numbers
+
+                #Do regression
+                
+                p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+          
+                #types <- functype[params_n] #get the parameter types
+                params_ind <- match(paramlist[params_n], colnames(indivstdat))
+        
+                reg7 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+        
+                #Save the AIC values
+                AIC_list <- append(AIC_list, AIC(reg7[[2]]))
+                AICnm_list <-append(AICnm_list, p_fullname)
+                
+                #Move to layer 8#################################################
+                layer8_nums = layer7_nums #so you have a list you can remove things from 
+              
+                for (num_l8 in layer7_nums){
+                  num_iter = match(num_l8, layer8_nums)
+                  layer8_nums <- layer8_nums[-num_iter]
+                  params_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6, num_l7, num_l8) #the parameter numbers
+                  
+                  #Do regression
+                  
+                  p_fullname <- paste(paramlist[params_n], collapse="_") #get the parameter names
+            
+                  #types <- functype[params_n] #get the parameter types
+                  params_ind <- match(paramlist[params_n], colnames(indivstdat))
+          
+                  reg8 <- MultReg3(indivstdat, params_ind, DepVarInd, RandVar, family = "binomial", priorw = ntrials)
+          
+                  #Save the AIC values
+                  AIC_list <- append(AIC_list, AIC(reg8[[2]]))
+                  AICnm_list <-append(AICnm_list, p_fullname)
+                  
+                } #end layer 8
+                
+              } #end layer 7 
+              
+              
+            } #end layer 6
+            
+          } #end layer 5
+          
+        } #end layer 4
+        
+        
+      } #end layer 3
+      
+    } #end layer 2
+      
+  } #end layer 1
+  
+  print(paste("Results for", st))
+  
+  min_aic <- min(AIC_list)
+  within2_aic <- AIC_list[AIC_list < (min_aic + 2)]
+  within2_names <- AICnm_list[AIC_list < (min_aic + 2)]
+  
+  print(within2_aic)
+  print(within2_names)
+  
+  if(st=="PuyallupValley"){
+    nrows = length(within2_aic)
+    Mort_AICmat <- matrix(NA, nrow=nrows, ncol=3) 
+    colnames(Mort_AICmat) <- c("Site", "IndepVars", "AIC")
+    Mort_AICmat[,1] <- rep(st, nrows)
+    Mort_AICmat[,2] <- within2_names
+    Mort_AICmat[,3] <- within2_aic
+    
+  } else {
+    nrows = length(within2_aic)
+    
+    #Rather convoluted way to add the matrices together
+    oldAICmat = Mort_AICmat
+    Mort_AICmat = matrix(NA, nrow = length(oldAICmat[,1]) + nrows, ncol = length(oldAICmat[1,]))
+    colnames(Mort_AICmat) = colnames(oldAICmat)
+    
+    Mort_AICmat[,1] <- append(oldAICmat[,1], rep(st, nrows))
+    Mort_AICmat[,2] <- append(oldAICmat[,2], within2_names)
+    Mort_AICmat[,3] <- append(oldAICmat[,3], within2_aic)
+  }
+  
+} #end site iteration
+
+write.csv(Mort_AICmat, "033121MortalityBestMultReg.csv")
+
+```

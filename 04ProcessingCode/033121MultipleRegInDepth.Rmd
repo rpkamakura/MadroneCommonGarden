@@ -1,0 +1,482 @@
+---
+title: "MultipleRegInDepth"
+author: "RPK"
+date: "April 23, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(nlme)
+library(gnm)
+library(MuMIn)
+library(sjPlot)
+
+
+source("032521PerSiteAnalys.R")
+source("032521RegressionFuncs.R")
+
+setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+
+options(stringsAsFactors = FALSE)
+
+paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP", "DD.5.sp")
+
+functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
+func_num <- 1:length(paramlist)
+
+years <- c(12, 13) #for subset analysis
+#years <- c(12, 13, 14, 15)
+sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
+
+pertfiles <- list("033121PVFulldata.csv", "033121PHFulldata.csv", "033121SFFulldata.csv", "033121SOFulldata.csv")
+sitesdata <- lapply(pertfiles, read.csv)
+names(sitesdata) <- sites
+
+#setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Data Analysis") #easier directory to work from
+#regdata <- lapply(list("033121_TotGrowth_BestMultReg.csv","040121_AmntDieback_BestMultReg.csv", "033121MortalityBestMultReg.csv"), read.csv)
+
+regdata <- lapply(list("../Data Analysis/040121_TotGrowth_BestMultReg12to13.csv","../Data Analysis/040121_AmntDieback_BestMultReg12to13.csv", "../Data Analysis/033121MortalityBestMultReg12to13.csv"), read.csv)
+
+#regdata <- lapply(list("../Data Analysis/040121_TotGrowth_BestMultReg12to13.csv","../Data Analysis/040121_AmntDieback_BestMultReg12to13.csv", "../Data Analysis/040121MortalityBestMultReg12to13.csv"), read.csv)
+
+```
+
+
+May not be able to use glm, might have to do some form of binomial? check out p. 28 at https://education.illinois.edu/docs/default-source/carolyn-anderson/edpsy589/lectures/Draft_glm_chapter_feb_2010.pdf
+
+https://stats.idre.ucla.edu/r/dae/binomial-regression/
+
+https://newonlinecourses.science.psu.edu/stat504/node/169/
+
+```{r}
+iter <- 0 
+d_vars <- c("TotGrowth", "AmntDieback") #got rid of mortality because it needs to be done differently
+fams <- c("linear", "zeroinfl")
+
+for (DepVar in regdata) {#For each response variable 
+  iter <- iter + 1
+  f <- fams[iter]
+  
+  #which dependent variable you have 
+  if (iter == 1| iter ==2){
+    #fulldata <-  IndivHeights_byTree(sitesdata, years, sites) #Growth Rate Data
+    fulldata <-  PercGrowth_byTree(sitesdata, years, sites) #Growth Rate Data
+    dvarnm <- d_vars[iter]
+    DepVarInd <- match(dvarnm, colnames(fulldata[[1]]))
+    
+    wts = FALSE
+
+  } else if (iter == 3){
+    
+    next
+    
+    fulldata <- IndivCond_final(sitesdata, sites) #Mortality Data
+    dvarnm <- d_vars[iter]
+    DepVarInd <- match(dvarnm, colnames(fulldata[[1]]))
+    
+    wts = FALSE
+    
+  }
+  
+  st_ind <- 0 #so you know which site you're on (index-wise)
+
+  
+  for (st in sites){
+    
+    TotNumIndep <- 0
+    TotIndepNm <- c()
+    
+    ##Initialize parameter lists
+    aic_vals <- c()
+    r2m_vals <- c()
+    r2c_vals <- c()
+     
+    upper_int <- c()
+    lower_int <- c()
+    est_param <- c()
+    p_vals <- c()
+    
+    ##Site index and pertinent regressions
+    st_ind <- st_ind + 1 #change the site index
+    st_dat <- fulldata[[st_ind]] #get the data for that site
+    st_dat <- st_dat[complete.cases(st_dat), ] #get rid of the NAs basically 
+    
+    pert_regs <- DepVar[(DepVar$Site == st),] #find the regressions for that site
+    reg_nms <- c()
+  
+    for (reg in 1:length(pert_regs[,1])){ #For each regression
+      
+      indep_vars <- unlist(strsplit(pert_regs$IndepVars[reg], "_")) #split the variables up 
+      indep_ind <- match(indep_vars, colnames(st_dat)) #get the indexes for the independent variables
+      indep_func_ind <- match(indep_vars, paramlist) #get the index for their function types
+      types <- functype[indep_func_ind] #get the function types
+      
+      ##Add the names of/number of independent variables to the corresponding lists
+      typ_ind <- 0
+      for (typ in types){
+        typ_ind <- typ_ind + 1
+        
+        if (typ == "E"){
+          TotNumIndep <- TotNumIndep + 6 #for all the ecoregions
+          TotIndepNm <- append(TotIndepNm, c("CSCD", "CSCO", "KLMT", "PULO", "SRNA", "WIVA"))
+          reg_nms <- append(reg_nms, rep(pert_regs[reg, 3], 6))
+        } else if (typ == "L"){
+          TotNumIndep <- TotNumIndep + 1
+          TotIndepNm <- append(TotIndepNm, indep_vars[typ_ind])
+          reg_nms <- append(reg_nms, pert_regs[reg, 3])
+          
+        } else if (typ == "Q"){
+          TotNumIndep <- TotNumIndep + 2
+          TotIndepNm <- append(TotIndepNm, c(indep_vars[typ_ind],
+                                             paste(indep_vars[typ_ind], "2", sep="")))
+          reg_nms <- append(reg_nms, rep(pert_regs[reg, 3], 2))
+        }
+      }
+      
+       RandVar <- match("Block", colnames(st_dat)) #random variable
+        
+      reg_results <- MultReg2(st_dat, indep_ind, DepVarInd, types, RandVar, family = f)
+        
+      reg_df <- reg_results[[1]] #the dataframe
+      reg_obj <- reg_results[[2]] #the lme object
+      
+      reg_sum <- summary(reg_obj)
+      
+      if (iter == 2){
+        
+        aic_vals <- append(aic_vals, reg_sum$AIC)
+        
+        num_pert_rws <- length(reg_int$fixed[,1]) 
+        num_indep <- length(indep_vars) + 1 #last index for independent variables to pay attention to 
+        upper_int <- append(upper_int, as.vector(reg_int$fixed[2:num_pert_rws,3]))
+        lower_int <- append(lower_int, as.vector(reg_int$fixed[2:num_pert_rws,1]))
+        est_param <- append(est_param, as.vector(reg_int$fixed[2:num_pert_rws,2]))
+        p_vals <- append(p_vals, as.vector(reg_sum$tTable[2:num_pert_rws,5]))
+        
+        print(paste("The number of parameter estimates for", reg, "is", length(as.vector(reg_int$fixed[2:num_pert_rws,2]))))
+        
+      } else if (iter == 1){
+        
+        reg_r2 <- r.squaredGLMM(reg_obj) 
+        reg_int <- intervals(reg_obj, which = "fixed")
+        
+        aic_vals <- append(aic_vals, reg_sum$AIC)
+        r2m_vals <- append(r2m_vals, reg_r2[1])
+        r2c_vals <- append(r2c_vals, reg_r2[2])
+        
+        num_pert_rws <- length(reg_int$fixed[,1]) 
+        num_indep <- length(indep_vars) + 1 #last index for independent variables to pay attention to 
+        upper_int <- append(upper_int, as.vector(reg_int$fixed[2:num_pert_rws,3]))
+        lower_int <- append(lower_int, as.vector(reg_int$fixed[2:num_pert_rws,1]))
+        est_param <- append(est_param, as.vector(reg_int$fixed[2:num_pert_rws,2]))
+        p_vals <- append(p_vals, as.vector(reg_sum$tTable[2:num_pert_rws,5]))
+        
+        print(paste("The number of parameter estimates for", reg, "is", length(as.vector(reg_int$fixed[2:num_pert_rws,2]))))
+        
+        
+        ##QQPlot
+        print(paste("QQPlot for reg:", dvarnm, "Vars:", pert_regs[reg, 3], "at", st))
+        qq_plot <- qqnorm(reg_obj)
+        print(qq_plot)
+        
+        ##Heteroskedasticity
+        print(paste("Fitted vs Residual Plot for reg:", dvarnm, "Vars:", pert_regs[reg, 3], "at", st))
+        het_plot <- plot(reg_obj)
+        print(het_plot)
+        
+      }
+      
+      
+      
+    } #for each regression 
+
+    if (st=="PuyallupValley"){
+      
+      #Overall Model Matrix
+      nrowsOverall = length(pert_regs[,1])
+      
+      #Parameter Matrix
+      nrowsParam <- TotNumIndep
+      
+      if (iter == 2){
+          r2m_vals <- rep(NA, nrowsOverall)
+          r2c_vals <- rep(NA, nrowsOverall)
+          est_param <- rep(NA, nrowsParam)
+          upper_int <- rep(NA, nrowsParam)
+          lower_int <- rep(NA, nrowsParam)
+          est_param <- rep(NA, nrowsParam)
+          p_vals <- rep(NA, nrowsParam)
+      }
+      
+      o_cols <- c("Site", "Dep", "Indep", "Rand", "AIC", "R2m", "R2c")
+      overal_mod <- matrix(NA, nrow = nrowsOverall, ncol = length(o_cols))
+      colnames(overal_mod) <- o_cols
+      
+      overal_mod[,1] <- rep(st, nrowsOverall)
+      overal_mod[,2] <- rep(dvarnm, nrowsOverall)
+      overal_mod[,3] <- pert_regs[, 3]
+      overal_mod[,4] <- rep("Block", nrowsOverall)
+      overal_mod[,5] <- aic_vals
+      overal_mod[,6] <- r2m_vals
+      overal_mod[,7] <- r2c_vals
+      
+        
+      param_cols <- c("Site", "Overal_Indep", "Dep", "Spec_Indep", "Estimate", "Lower", "Upper", "P_val")
+      param_mat <- matrix(NA, nrow = nrowsParam, ncol = length(param_cols))
+      colnames(param_mat) = param_cols
+      
+      param_mat[,1] <- rep(st, nrowsParam) 
+      param_mat[,2] <- reg_nms
+      param_mat[,3] <- rep(dvarnm, nrowsParam)
+      param_mat[,4] <- TotIndepNm
+      param_mat[,5] <- est_param
+      param_mat[,6] <- lower_int
+      param_mat[,7] <- upper_int
+      param_mat[,8] <- p_vals
+      
+    } else { #depending on which site you're on 
+      
+      nrows_nw <- length(pert_regs[,1])
+      
+      
+      
+      if (iter == 2){
+          r2m_vals <- rep(NA, nrows_nw)
+          r2c_vals <- rep(NA, nrows_nw)
+          est_param <- rep(NA, TotNumIndep)
+          upper_int <- rep(NA, TotNumIndep)
+          lower_int <- rep(NA, TotNumIndep)
+          est_param <- rep(NA, TotNumIndep)
+          p_vals <- rep(NA, TotNumIndep)
+      }
+      
+      #Rather convoluted way to add the matrices together
+      
+      ##Overall Matrix
+      nrowsOverall = length(pert_regs[,1]) + length(overal_mod[,1])
+      
+      oldOveralmat = overal_mod
+      
+      o_cols <- c("Site", "Dep", "Indep", "Rand", "AIC", "R2m", "R2c")
+      overal_mod <- matrix(NA, nrow = nrowsOverall, ncol = length(o_cols))
+      colnames(overal_mod) <- o_cols
+      
+      overal_mod[,1] <- append(oldOveralmat[,1], rep(st, nrows_nw))
+      overal_mod[,2] <- append(oldOveralmat[,2], rep(dvarnm, nrows_nw))
+      overal_mod[,3] <- append(oldOveralmat[,3], pert_regs[, 3])
+      overal_mod[,5] <- append(oldOveralmat[,5], aic_vals)
+      overal_mod[,6] <- append(oldOveralmat[,6], r2m_vals)
+      overal_mod[,7] <- append(oldOveralmat[,7], r2c_vals)
+      overal_mod[,4] <- append(oldOveralmat[,4], rep("Block", nrows_nw))
+      
+      
+      ##Parameter Matrix
+      nrowsParam <- TotNumIndep + length(param_mat[,1])
+      oldParammat = param_mat
+        
+      param_cols <- c("Site", "Overal_Indep", "Dep", "Spec_Indep", "Estimate", "Lower", "Upper", "P_val")
+      param_mat <- matrix(NA, nrow = nrowsParam, ncol = length(param_cols))
+      colnames(param_mat) = param_cols
+      
+      param_mat[,1] <- append(oldParammat[,1], rep(st, TotNumIndep))
+      param_mat[,2] <- append(oldParammat[,2], reg_nms)
+      param_mat[,3] <- append(oldParammat[,3], rep(dvarnm, TotNumIndep))
+      param_mat[,4] <- append(oldParammat[,4], TotIndepNm)
+      param_mat[,5] <- append(oldParammat[,5], est_param)
+      param_mat[,6] <- append(oldParammat[,6], lower_int)
+      param_mat[,7] <- append(oldParammat[,7], upper_int)
+      param_mat[,8] <- append(oldParammat[,8], p_vals)
+      
+    } #depending on which site you're on 
+    
+  } #site for loop  
+  
+  ##Write data to CSV
+  if (dvarnm == "TotGrowth"){ #check what the random variables are (what the dep var is)
+    write.csv(overal_mod, "040221_TGR_BestModelResults12to13.csv")
+    write.csv(param_mat, "040221_TGR_BestParamResults12to13.csv")
+  } else if (dvarnm == "AmntDieback"){
+    write.csv(overal_mod, "040221_ADBK_BestModelResults12to13.csv")
+    write.csv(param_mat, "040221_ADBK_BestParamResults12to13.csv")
+  } else if (dvarnm == "PercDead"){
+    #write.csv(overal_mod, "0508Mort_BestModelResults12to13.csv")
+    #write.csv(param_mat, "0508Mort_BestParamResults12to13.csv")
+  }
+
+} #dependent variable for loop 
+
+
+``` 
+
+
+#New Mortality
+```{r}
+
+DepVar <- regdata[[3]]
+fulldata <- IndivCond_final(sitesdata, sites) #Mortality Data
+dvarnm <- "PercDead"
+f = "binomial"
+
+st_ind <- 0 #so you know which site you're on (index-wise)
+functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
+
+  
+  for (st in sites){
+    
+    TotNumIndep <- 0
+    TotIndepNm <- c()
+    
+    ##Initialize parameter lists
+    aic_vals <- c()
+    r2m_vals <- c()
+    r2c_vals <- c()
+    
+    se <- c()
+    est_param <- c()
+    p_val <- c()
+    
+    ##Site index and pertinent regressions
+    st_ind <- st_ind + 1 #change the site index
+    st_dat <- fulldata[[st_ind]] #get the data for that site
+    st_dat <- st_dat[complete.cases(st_dat), ] #get rid of the NAs basically 
+    DepVarInd <- match(dvarnm, colnames(st_dat))
+    ntrials <- match("Total", colnames(st_dat))
+    
+    pert_regs <- DepVar[(DepVar$Site == st),] #find the regressions for that site
+    reg_nms <- c()
+  
+    for (reg in 1:length(pert_regs[,1])){ #For each regression
+      
+      indep_vars <- unlist(strsplit(pert_regs$IndepVars[reg], "_")) #split the variables up 
+      indep_ind <- match(indep_vars, colnames(st_dat)) #get the indexes for the independent variables
+      indep_func_ind <- match(indep_vars, paramlist) #get the index for their function types
+      types <- functype[indep_func_ind] #get the function types
+      
+      ##Add the names of/number of independent variables to the corresponding lists
+      typ_ind <- 0
+      for (typ in types){
+        typ_ind <- typ_ind + 1
+        
+        if (typ == "E"){
+          TotNumIndep <- TotNumIndep + 6 #for all the ecoregions
+          TotIndepNm <- append(TotIndepNm, c("CSCD", "CSCO", "KLMT", "PULO", "SRNA", "WIVA"))
+          reg_nms <- append(reg_nms, rep(pert_regs[reg, 3], 6))
+        } else {
+          TotNumIndep <- TotNumIndep + 1
+          TotIndepNm <- append(TotIndepNm, indep_vars[typ_ind])
+          reg_nms <- append(reg_nms, pert_regs[reg, 3])
+          
+        }
+      }
+      
+       RandVar <- match("Block", colnames(st_dat)) #random variable
+        
+      reg_results <- MultReg3(st_dat, indep_ind, DepVarInd, RandVar, family = f, priorw = ntrials)
+      
+      reg_df <- reg_results[[1]] #the dataframe
+      reg_obj <- reg_results[[2]] #the lme object
+      
+      
+      #fitplot <- sjp.glmer(reg_obj, type = "re.qq")
+      #print(paste("Fit plot for", pert_regs$IndepVars[reg], "at", st))
+      #print(fitplot)
+      
+      reg_sum <- summary(reg_obj)
+      reg_r2 <- r.squaredGLMM(reg_obj)
+      reg_int <- reg_sum$coefficients
+      
+      aic_vals <- append(aic_vals, as.vector(reg_sum$AICtab[1]))
+      r2m_vals <- append(r2m_vals, reg_r2[2, 1])
+      r2c_vals <- append(r2c_vals, reg_r2[2, 2])
+      
+      num_pert_rws <- length(reg_int[,1])
+      se <- append(se, as.vector(reg_int[2:num_pert_rws,2]))
+      p_val <- append(p_val, as.vector(reg_int[2:num_pert_rws,4]))
+      est_param <- append(est_param, as.vector(reg_int[2:num_pert_rws,1]))
+      
+    } #for each regression 
+
+    if (st=="PuyallupValley"){
+      
+      #Overall Model Matrix
+      nrowsOverall = length(pert_regs[,1])
+      
+      o_cols <- c("Site", "Dep", "Indep", "Rand", "AIC", "R2m", "R2c")
+      overal_mod <- matrix(NA, nrow = nrowsOverall, ncol = length(o_cols))
+      colnames(overal_mod) <- o_cols
+      
+      overal_mod[,1] <- rep(st, nrowsOverall)
+      overal_mod[,2] <- rep(dvarnm, nrowsOverall)
+      overal_mod[,3] <- pert_regs[, 3]
+      overal_mod[,4] <- rep("Block", nrowsOverall)
+      overal_mod[,5] <- aic_vals
+      overal_mod[,6] <- r2m_vals
+      overal_mod[,7] <- r2c_vals
+      
+      #Parameter Matrix
+      nrowsParam <- TotNumIndep
+        
+      param_cols <- c("Site", "Overal_Indep", "Dep", "Spec_Indep", "Estimate", "STDError", "Pr(>|z|)")
+      param_mat <- matrix(NA, nrow = nrowsParam, ncol = length(param_cols))
+      colnames(param_mat) = param_cols
+      
+      param_mat[,1] <- rep(st, nrowsParam)
+      param_mat[,2] <- reg_nms
+      param_mat[,3] <- rep(dvarnm, nrowsParam)
+      param_mat[,4] <- TotIndepNm
+      param_mat[,5] <- est_param
+      param_mat[,6] <- se
+      param_mat[,7] <- p_val
+      
+    } else { #depending on which site you're on 
+      
+      #Rather convoluted way to add the matrices together
+      
+      ##Overall Matrix
+      nrowsOverall = length(pert_regs[,1]) + length(overal_mod[,1])
+      nrows_nw <- length(pert_regs[,1])
+      oldOveralmat = overal_mod
+      
+      o_cols <- c("Site", "Dep", "Indep", "Rand", "AIC", "R2m", "R2c")
+      overal_mod <- matrix(NA, nrow = nrowsOverall, ncol = length(o_cols))
+      colnames(overal_mod) <- o_cols
+      
+      overal_mod[,1] <- append(oldOveralmat[,1], rep(st, nrows_nw))
+      overal_mod[,2] <- append(oldOveralmat[,2], rep(dvarnm, nrows_nw))
+      overal_mod[,3] <- append(oldOveralmat[,3], pert_regs[, 3])
+      overal_mod[,5] <- append(oldOveralmat[,5], aic_vals)
+      overal_mod[,6] <- append(oldOveralmat[,6], r2m_vals)
+      overal_mod[,7] <- append(oldOveralmat[,7], r2c_vals)
+      overal_mod[,4] <- append(oldOveralmat[,4], rep("Block", nrows_nw))
+      
+      
+      ##Parameter Matrix
+      nrowsParam <- TotNumIndep + length(param_mat[,1])
+      oldParammat = param_mat
+        
+      param_cols <- c("Site", "Overal_Indep", "Dep", "Spec_Indep", "Estimate", "STDError", "Pr(>|z|)")
+      param_mat <- matrix(NA, nrow = nrowsParam, ncol = length(param_cols))
+      colnames(param_mat) = param_cols
+      
+      param_mat[,1] <- append(oldParammat[,1], rep(st, TotNumIndep))
+      param_mat[,2] <- append(oldParammat[,2], reg_nms)
+      param_mat[,3] <- append(oldParammat[,3], rep(dvarnm, TotNumIndep))
+      param_mat[,4] <- append(oldParammat[,4], TotIndepNm)
+      param_mat[,5] <- append(oldParammat[,5], est_param)
+      param_mat[,6] <- append(oldParammat[,6], se)
+      param_mat[,7] <- append(oldParammat[,7], p_val)
+      
+    } #depending on which site you're on 
+    
+  } #site for loop 
+  
+  write.csv(overal_mod, "040121_Mort_BestModelResults12to13.csv")
+  write.csv(param_mat, "040121_Mort_BestParamResults12to13.csv")
+
+
+```
