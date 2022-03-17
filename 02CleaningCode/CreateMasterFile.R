@@ -3,15 +3,15 @@ library(ggplot2)
 library(plyr)
 
 options(stringsAsFactors = FALSE)
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
 
 years <- c(12, 13, 14, 15)
-sites <- c("BenLomond", "PuyallupHill", "PuyallupValley", "Starker", "Sprague")
-sitesshort <- c("BL", "PH", "PV", "SF", "SO")
-ecoregiondata <- read.csv("EcoregionData.csv")
+sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
+sitesshort <- c("PH", "PV", "SF", "SO")
+ecoregiondata <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 
-pertfiles <- list("BLFulldata.csv", "PHFulldata.csv", "PVFulldata.csv", "SFFulldata.csv", 
-                  "SOFulldata.csv", "PYFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/PVFulldata.csv", 
+                  "../03ExampleCleanedData/SFFulldata.csv", 
+                  "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles,read.csv)
 names(sitesdata) <- sites
 
@@ -40,4 +40,4 @@ for (site_dat in sitesdata){
   
 }
 
-write.csv(totalsitedata, "MasterDataFile.csv")
+write.csv(totalsitedata, "../03ExampleCleanedData/MasterDataFile.csv")
