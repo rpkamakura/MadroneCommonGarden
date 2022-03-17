@@ -1,0 +1,18 @@
+Telling you which data are doing what in this folder
+
+CG_locandclim - the location (lat long) and climate data for the common garden 
+sites. From a combination of local data and ClimateWNA v. 6.21 and ClimateBC v. 5.04
+
+
+EcoregionData - The ecoregion designations for all the seed sources
+
+LocandClim_sa - Location and climate data for the seed sources, including slope 
+and aspect from google earth engine (derived from SRTM Digital Elecation Data 30m) and
+climate data from ClimateWNA v. 6.21 and ClimateBC v. 5.04
+
+PlantingLocations - Raw common garden location data
+
+SeedSourceLocations - Raw seed source location data
+
+WeatherData - all the data from ClimateWNA v. 6.21 and ClimateBC v. 5.04 for seed sources
+and common garden sites, including variables not used in the analyses
