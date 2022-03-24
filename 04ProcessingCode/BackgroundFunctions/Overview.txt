@@ -1,0 +1,7 @@
+AnalysisFunctions_GRMort -> changes raw height and condition data into the mortality, 
+growth, and percent mortality used for later analyses
+
+RegressionFuncs -> used to run through various regression options to pick the optimal
+models
+* note that the difference between 1 and 2 is what is printed out, 1 is less clunky
+but is not as helpful if you want to do a deeper dive into the regression results

@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(vip)
 #read-in functions to calucate growth and mortality
-source("../04ProcessingCode/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 
