@@ -1,0 +1,12 @@
+01CreateFullSiteData - take the raw data and combine them into site-level datasets
+
+02MadroneNSEW - get the distances between family location and common garden site
+for relevant environmental variables
+
+03CreateMasterFile - in case you need a file with all the common garden sites
+together
+
+04ChooseEnvVarsMadrone - goes through the environmental variables of interest, 
+shows you their R2 values with respect to the outcome variables of interest, 
+and creates a correlation matrix showing you how correlated they are to one another
+in order to facilitate variable selection. 

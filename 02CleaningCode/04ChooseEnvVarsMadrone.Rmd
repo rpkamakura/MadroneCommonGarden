@@ -8,8 +8,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(vip)
-source("../Data Analysis/032521PerSiteAnalys.R")
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+#read-in functions to calucate growth and mortality
+source("../04ProcessingCode/AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -17,20 +17,21 @@ options(stringsAsFactors = FALSE)
 years <- c(12, 13, 14, 15)
 
 #Ecoregion data
-ecoregdat <- read.csv("EcoregionData.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 ecoregions <- unique(ecoregdat$EcoregionShort)
+
 sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
 
 #Sources
 sources <- unique(ecoregdat$Source)
 
 ##Get the full data files
-pertfiles <- list("./Basic Datasets/033121PVFulldata.csv", "./Basic Datasets/033121PHFulldata.csv",  "./Basic Datasets/033121SFFulldata.csv", "./Basic Datasets/033121SOFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv",  "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles,read.csv)
 names(sitesdata) <- sites
 
 
-locandclim <- read.csv("LocandClim_sa.csv")
+locandclim <- read.csv("../01ExampleRawData/02LocationData/LocandClim_sa.csv")
 
 a <- length(locandclim[,1])
 cg_locandclim <- locandclim[c((a-3):a),]
@@ -40,16 +41,17 @@ cg_locandclim <- locandclim[c((a-3):a),]
 ##Environmental Variables
 
 ```{r variables from ClimateNA and WNA}
-GrowthRates = PercGrowth_byTree(sitesdata, years, sites) 
+GrowthRates <- PercGrowth_byTree(sitesdata, years, sites, type="sub") 
 condata <- IndivCond_final(sitesdata, sites)
 
 #WeatherData
 
-fullClim <- read.csv("../Climate Data/WeatherData.csv")
+fullClim <- read.csv("../01ExampleRawData/02LocationData/WeatherData.csv")
 
 #find the actual climate variables in the dataframe
+#here we are using seasonal and annual vriables
 grdbk_climvars <- c(3, 10:13, 21:99)
-cond_climvars <- c(7:11, 19:97)
+cond_climvars <- c(7:11, 20:98)
 
 #data storage matrix
 stomat <- as.data.frame(matrix(0, nrow=length(grdbk_climvars), ncol= c(3*4 + 1)))
@@ -91,61 +93,14 @@ for (s in 1:4){
   
 }
 
-#write.csv(stomat, "033021LinREgressions.csv")
+write.csv(stomat, "../05ProcessedDataOutputs/01EnvVars/LinREgressions.csv")
 
 
 
 ```
-The variables you get from this ranking (top ~13): 
 
-Ecoregion*
-DD.5_at - autumn degree-days above 5°C
-Dist*
-Tave_at - autumn mean temperature (°C)
-DD.18_at - autumn degree-days below 18°C
-Eref_wt - winter Hargreaves reference evaporation (mm)
-DD.5_wt - winter degree-days above 5°C
-Tmax_wt - winter mean maximum temperature (°C)
-DD.5 - degree-days above 5°C, growing degree-days
-MCMT - mean coldest month temperature (°C),
-DD.18_wt - winter degree-days below 18°C
-Tave_wt - winter mean temperature (°C)
-MAT - mean annual temperature (°C),
-
-top 5 for PV MOrt
-Ecoregion*
-Dist*
-DD.5_wt+
-DD.5_at
-Tave_at
-
-
-top 5 for PH Mort (they're all trash tho)
-Ecoregion*
-DD.18_sm.1
-DD.18.1
-MWMT
-DD.5_sm
-
-
-top 5 for SF Mort
-Dist*
-DD.5_wt+
-Ecoregion*
-Eref_wt
-MCMT
-
-
-top 5 for SO Mort
-Ecoregion*
-eFFP.y ~
-EMT
-DD.5_wt+
-Tmin_wt
-
-
-variables with r2 > 0.1 at at least two sites, in decreasing order of sum of r2 values across
-growth, dieback, and mortality at all sites:
+The variables with r2 > 0.1 at at least two sites, in decreasing order of sum of r2 values across
+growth, dieback, and mortality at all sites (for the original data):
 
 Ecoregion
 DD.5_wt
@@ -180,11 +135,18 @@ Eref_sp
 MSP.y
 
 
+Note: because here you are using simulated data, your results will not be the same. 
+Change the variables of interest in "varlist" below to focus on those that provide
+promising R2 values above
+
+
+
 ```{r env corr between}
 #fullClim <- read.csv("../Climate Data/WeatherData.csv")
 #ecoregdat
 #locandclim
 
+#all the variables of interest
 varlist <- c("Latitude", "Longitude", "Slope", "Aspect", "Elevation", "DD.5_wt", "Tmax_wt", "Eref_wt", "MCMT", "DD.5_at", "Tave_wt", "DD.18_wt", "Tave_at", "DD.18_at", "DD.18", "DD.5", "MAT", "SHM", "Tmax_at", "CMD_at", "Eref_at", "eFFP.y", "DD.5_sp", "DD.18_at.1", "Tave_sp", "DD.18_sp", "Tmin_at", "Tmin_wt", "PPT_sm", "CMD", "CMD_sp", "EMT", "Eref_sp", "MSP.y", "bFFP.x")
 
 ##pairwise linear regressions
@@ -217,7 +179,7 @@ for (i in 1:length(varlist)){
     var2 <- AllClim[, c(v_inds[i2])]
     var2_nm <- varlist[match(v_inds[i2], var_inds)]
     
-    corr <- summary(lm(var1 ~ var2))$r.squared
+    corr <- summary(lm(var1 ~ var2))$r.squared #get the r.squared value
     
     output_mat[var1_nm, var2_nm] <- corr
     } 
@@ -228,7 +190,7 @@ for (i in 1:length(varlist)){
   
 }
 
-#write.csv(output_mat, "ClimateVarCorrelations.csv")
+write.csv(output_mat, "../05ProcessedDataOutputs/01EnvVars/ClimateVarCorrelations.csv")
 
 
 ```
@@ -236,14 +198,14 @@ for (i in 1:length(varlist)){
 ##adding dist
 
 ```{r }
-
+##Adding the distance to the common garden site
 
 for (s in 1:4){
   
   grdbk <- merge(GrowthRates[[s]], fullClim, by="Family")
   
   r2_DD18 <- summary(lm(DD.18_at ~ Dist, data=grdbk))$r.squared
-  r2_DD5 <- summary(lm(DD.5_sp ~ Dist, data=grdbk))$r.squared
+  r2_DD5 <- summary(lm(DD.5_sp.y ~ Dist, data=grdbk))$r.squared
   
   print(paste("At Site", s, "R2 for DD.18_at is:", r2_DD18 ))
   print(paste("At Site", s, "R2 for DD.5_sp is:", r2_DD5 ))
@@ -258,6 +220,6 @@ for (s in 1:4){
 f_clim <- fullClim[, c("Family", "DD.5_sp")]
 ClimWNew <- merge(locandclim, f_clim, by="Family")
 
-write.csv(ClimWNew, "../Climate Data/033121LocClim.csv")
+write.csv(ClimWNew, "../01ExampleRawData/02LocationData/LocClim.csv")
 
 ```

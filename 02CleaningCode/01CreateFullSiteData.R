@@ -1,12 +1,11 @@
 ## Put together all the files for each source
 library(ggplot2)
 library(plyr)
-#source("PerSiteAnalys.R")
 
 options(stringsAsFactors = FALSE)
 
 #Get all the yearly files for each site
-filenames <- list.files(path="../Basic Datasets/data_byYears", pattern="*.csv", full.names=TRUE)
+filenames <- list.files(path="../01ExampleRawData/01CondGrowthPhen/CondGR", pattern="*.csv", full.names=TRUE)
 
 ## Sort files by data year
 filesPH <- c()
@@ -15,7 +14,7 @@ filesSF <- c()
 filesSO <- c()
 
 for (path in filenames){
-  fle <- strsplit(path, "/")[[1]][4] #just get the filename and not the path
+  fle <- strsplit(path, "/")[[1]][5] #just get the filename and not the path
   PLsite <- gsub("[^A-Z]", "", fle) #get the sitename
   if (PLsite == "BL"){
     next
@@ -31,19 +30,20 @@ for (path in filenames){
 }
 
 #Data with different Distances
-DistData <- read.csv("../Distance Data/DistancesDir2.csv")
+DistData <- read.csv("../01ExampleRawData/02LocationData/DistancesDir.csv")
 
 #Data with climatic variables
-ClimData <- read.csv("../Climate Data/033121LocClim.csv")
+ClimData <- read.csv("../01ExampleRawData/02LocationData/WeatherData.csv")
+locandclim <- read.csv("../01ExampleRawData/02LocationData/LocandClim_sa.csv")
 
 #Set up various variables
-#years <- c(12, 13, 14, 15)
-years <- c(14, 15)
+years <- c(12, 13, 14, 15)
+#years <- c(14, 15) - if you want to subset by year
 sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
 sitesshort <- c("PH", "PV", "SF", "SO")
 
 #Get the ecoregions for each family
-ecoregiondata <- read.csv("../Basic Datasets/EcoregionData.csv")
+ecoregiondata <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 
 
 st_ind = 0 #so you can index the sites
@@ -65,18 +65,20 @@ for (st in sites){
   }
   totalsitedata = c()
   stclim_ind <- match(st, ClimData$Family)
+  stloc_ind <- match(st, locandclim$Family)
   st_bFFP <- ClimData$bFFP[stclim_ind]
   st_eFFP <- ClimData$eFFP[stclim_ind]
   st_MSP <- ClimData$MSP[stclim_ind]
-  st_Asp <- ClimData$Aspect[stclim_ind]
-  st_Slo <- ClimData$Slope[stclim_ind]
-  st_Hardi <-ClimData$Hardiness[stclim_ind]
+  st_Asp <- locandclim$Aspect[stloc_ind]
+  st_Slo <- locandclim$Slope[stloc_ind]
+  st_Hardi <-locandclim$Hardiness[stloc_ind]
   st_DD5 <- ClimData$DD.5_sp[stclim_ind]
   
   #Go through each file
   for (fl in yrfiles){
     yearlocdat <- read.csv(fl) 
-    yr <- gsub("[^0-9]", "", fl)
+    fle <- strsplit(fl, "/")[[1]][5] #just get the filename and not the path
+    yr <- gsub("[^0-9]", "", fle)
     
     if (!(as.numeric(yr) %in% years)){ #allows you to subset years of data
       next
@@ -137,6 +139,7 @@ for (st in sites){
       }
       
     } #end family loop
+    
     columns <- c("Site" ,"Ecoregion", "Source", "Family", "Block", "Tree", "Condition", 
                  "Height", "Leaders", "Distance", "ElevDist", "eFFP", "MSP", "Slope", 
                  "Aspect", "Hardiness", "DD.5_sp")
@@ -171,40 +174,8 @@ for (st in sites){
     year_dat$Hardiness <- clim_vec[[6]] #could make this a distance by subtracting min val or something
     year_dat$Aspect <- clim_vec[[4]]
     
-    # fam_iter <- 0
-    # year_dat$Aspect <- rep(0, length(clim_vec[[5]])) #initialize the aspect vector
-    # 
-    # for (fam_asp in clim_vec[[5]]){
-    #   fam_iter = fam_iter + 1
-    #   if (is.na(fam_asp)){
-    #     year_dat$Aspect[fam_iter] <- NA
-    #     next
-    #   }
-    #   if (st_Asp <= 0 && fam_asp <= 0){ ## both negative
-    #     year_dat$Aspect[fam_iter] <- st_Asp - fam_asp
-    #   } else if (st_Asp >= 0 && fam_asp >= 0){ ## both positive
-    #     year_dat$Aspect[fam_iter] <- st_Asp - fam_asp
-    #   } else if (st_Asp > 0 && fam_asp < 0){ ##site is positive
-    #     if (fam_asp < -pi + st_Asp){
-    #       year_dat$Aspect[fam_iter] = -(pi - st_Asp) + (-pi - fam_asp)
-    #     } else if (fam_asp > -pi + st_Asp){
-    #       year_dat$Aspect[fam_iter] = st_Asp - fam_asp
-    #     } else {
-    #       year_dat$Aspect[fam_iter] = pi 
-    #     }
-    #   } else if (st_Asp < 0 && fam_asp > 0){ ## site is negative
-    #     if (fam_asp < pi + st_Asp){
-    #       year_dat$Aspect[fam_iter] = st_Asp - fam_asp
-    #     } else if (fam_asp > pi + st_Asp){
-    #       year_dat$Aspect[fam_iter] = -(-pi - st_Asp) + (pi - fam_asp)
-    #     } else {
-    #       year_dat$Aspect[fam_iter] = pi 
-    #     }
-    #   } 
-    # }
     
-    
-    if (yr == 14){
+    if (yr == "12"){
       totalsitedata = year_dat
       yearcol = rep(yr, length(year_dat$Distance))
       totalsitedata$Year = yearcol
@@ -246,9 +217,9 @@ for (st in sites){
   
 }
 
-write.csv(PHtotdat, "../Basic Datasets/033121PHFulldata14to15.csv")
-write.csv(PVtotdat, "../Basic Datasets/033121PVFulldata14to15.csv")
-write.csv(SFtotdat, "../Basic Datasets/033121SFFulldata14to15.csv")
-write.csv(SOtotdat, "../Basic Datasets/033121SOFulldata14to15.csv")
+write.csv(PHtotdat, "../03ExampleCleanedData/PHFulldata.csv")
+write.csv(PVtotdat, "../03ExampleCleanedData/PVFulldata.csv")
+write.csv(SFtotdat, "../03ExampleCleanedData/SFFulldata.csv")
+write.csv(SOtotdat, "../03ExampleCleanedData/SOFulldata.csv")
 
 

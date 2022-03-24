@@ -8,8 +8,9 @@ library(plyr)
 ##############################################################################
 
 #instead of just raw growth, now you have percent growth
-PercGrowth_byTree <- function(datasets, years, sites){
+PercGrowth_byTree <- function(datasets, years, sites, type="full"){
 
+  
   Growthrtdata <- list()
   iter = 0
   
@@ -18,15 +19,17 @@ PercGrowth_byTree <- function(datasets, years, sites){
     
     sitedata <- sitedata[!is.na(sitedata$Height),] #because those will be useless anyway
     st <- as.vector(sitedata$Site[1])
-    sitedata$Year = as.numeric(sitedata$Year)
-    sitedata$Height = as.numeric(sitedata$Height)
+    sitedata$Year <- as.numeric(sitedata$Year)
+    sitedata$Height <- as.numeric(sitedata$Height)
+    
+    #### Pulling in the environmental variables
     sitedata$MSP <- as.numeric(sitedata$MSP)
     sitedata$Slope <- as.numeric(sitedata$Slope)
     sitedata$Aspect <- as.numeric(sitedata$Aspect)
-    
+
     ##Growth Rate
     column_names <- c("Site", "Ecoregion", "Source", "Family", "Block", "Tree", "TotGrowth", "NumDieback", "AmntDieback", "Dist", 
-                      "ElevDist", "Slope", "Aspect", "eFFP", "MSP", "DD.5.sp")
+                      "ElevDist", "Slope", "Aspect", "eFFP", "MSP", "DD.5_sp")
     GrowthRatemat = matrix(NA, nrow = length(unique(sitedata$Family))*length(unique(sitedata$Block))*length(unique(sitedata$Tree)), 
                            ncol = length(column_names))
     colnames(GrowthRatemat) = column_names
@@ -116,7 +119,7 @@ PercGrowth_byTree <- function(datasets, years, sites){
           GrowthRatemat[row_ind, 13] = as.numeric(areadat$ElevDist[1])
           GrowthRatemat[row_ind, 14] = as.numeric(areadat$eFFP[1])
           GrowthRatemat[row_ind, 15] = as.numeric(areadat$MSP[1])
-          GrowthRatemat[row_ind, 16] = as.numeric(areadat$DD.5.sp[1])
+          GrowthRatemat[row_ind, 16] = as.numeric(areadat$DD.5_sp[1])
           
           
           
@@ -164,7 +167,7 @@ IndivHeights_byTree <- function(datasets, years, sites){
     
     ##Growth Rate
     column_names <- c("Site", "Ecoregion", "Source", "Family", "Block", "Tree", "TotGrowth", "NumDieback", "AmntDieback", "Dist", 
-                      "ElevDist", "Slope", "Aspect", "DD.5.sp", "eFFP", "MSP")
+                      "ElevDist", "Slope", "Aspect", "DD.5_sp", "eFFP", "MSP")
     GrowthRatemat = matrix(NA, nrow = length(unique(sitedata$Family))*length(unique(sitedata$Block))*length(unique(sitedata$Tree)), 
                            ncol = length(column_names))
     colnames(GrowthRatemat) = column_names
@@ -249,7 +252,7 @@ IndivHeights_byTree <- function(datasets, years, sites){
             GrowthRatemat[row_ind, 11] = areadat$ElevDist[1]
             GrowthRatemat[row_ind, 12] = areadat$Slope[1]
             GrowthRatemat[row_ind, 13] = areadat$Aspect[1]
-            GrowthRatemat[row_ind, 14] = areadat$DD.5.sp[1]
+            GrowthRatemat[row_ind, 14] = areadat$DD.5_sp[1]
             GrowthRatemat[row_ind, 15] = areadat$eFFP[1]
             GrowthRatemat[row_ind, 16] = areadat$MSP[1]
             
@@ -295,7 +298,7 @@ IndivCond <- function(datasets, sites){
       #number of families and years and blocks
     srcecond <- as.data.frame(matrix(0, nrow=numrow, ncol=15)) #before 0 was set to 0.0001
     colnames(srcecond) <- c("Block", "Family", "Source","Year","Dead", "Total", "PercDead", "Ecoregion", "Dist", 
-                            "Slope", "Aspect", "ElevDist", "DD.5.sp", "eFFP", "MSP")
+                            "Slope", "Aspect", "ElevDist", "DD.5_sp", "eFFP", "MSP")
     
                                 
     iter = 0
@@ -349,7 +352,7 @@ IndivCond <- function(datasets, sites){
           srcecond[iter, 12] = famdata$ElevDist[1]
           
           #Climate Variables
-          srcecond[iter, 13] = famdata$DD.5.sp[1]
+          srcecond[iter, 13] = famdata$DD.5_sp[1]
           srcecond[iter, 14] = famdata$eFFP[1]
           srcecond[iter, 15] = famdata$MSP[1]
   
@@ -382,7 +385,7 @@ IndivCond_final <- function(datasets, sites){
     #number of families and years and blocks
     srcecond <- as.data.frame(matrix(0, nrow=numrow, ncol=15)) #before 0 was set to 0.0001
     colnames(srcecond) <- c("Block", "Family", "Source", "Dead", "Total", "PercDead", "Ecoregion", "Dist", 
-                            "Slope", "Aspect", "ElevDist", "eFFP", "DD.5.sp", "MSP", "Site")
+                            "Slope", "Aspect", "ElevDist", "eFFP", "DD.5_sp", "MSP", "Site")
     
     
     iter = 0
@@ -473,7 +476,7 @@ IndivCond_final <- function(datasets, sites){
         
         #Climate Variables
         srcecond[iter, 12] = as.numeric(famdata$eFFP[1])
-        srcecond[iter, 13] = as.numeric(famdata$DD.5.sp[1])
+        srcecond[iter, 13] = as.numeric(famdata$DD.5_sp[1])
         srcecond[iter, 14] = as.numeric(famdata$MSP[1])
         
         
@@ -492,177 +495,11 @@ IndivCond_final <- function(datasets, sites){
   
 }
 
-##Just looks at overall mortality instead of by year
-IndivCond_finalpt <- function(datasets, sites){
-  
-  Conddata <- list()
-  st_ind = 0
-  for (sitedata in datasets){
-    st_ind = st_ind + 1
-    st = sites[st_ind]
-    
-    numrow <- (length(na.omit(unique(sitedata$Family)))*
-                 length(na.omit(unique(sitedata$Block)))*length(na.omit(unique(sitedata$Tree))))
-    #number of families and years and blocks
-    srcecond <- as.data.frame(matrix(0, nrow=numrow, ncol=13)) #before 0 was set to 0.0001
-    colnames(srcecond) <- c("Block", "Family", "Source", "Dead", "Ecoregion", "Dist", 
-                            "Slope", "Aspect", "ElevDist", "DD.5.sp", "eFFP", "MSP", "Site")
-    
-    
-    iter = 0
-    for (fam in na.omit(unique(sitedata$Family))){ #iterate through the families
-      if (fam == ""){
-        next
-      }
-      famdata <- sitedata[sitedata$Family == fam,]
-      famdata <- famdata[!is.na(famdata$Condition),]
-      
-      for (block in na.omit(unique(sitedata$Block))){ #iterate through the blocks
-        
-        blockdata <- famdata[famdata$Block==block,]
-        blockdata <- blockdata[!is.na(blockdata$Block),]
-        
-        for (tree in na.omit(unique(blockdata$Tree))){
-          
-          treedata <- blockdata[blockdata$Tree==tree,]
-          treedata <- treedata[!is.na(treedata$Condition),]
-          
-          max_yr <- max(unique(treedata$Year))
-          max_cond <- treedata$Condition[treedata$Year == max_yr]
-          min_yr <- min(unique(treedata$Year))
-          min_cond <- treedata$Condition[treedata$Year == min_yr]
-          
-          if (length(min_cond) > 1){
-            print(paste("Warning: Tree", tree, "from block", block, "from family", fam, "at site", st, "has more than one data point for", min_yr))
-            if (4 %in% min_cond){
-              min_cond <- min_cond[is.na(match(min_cond, 4))] #get rid of the dead trees
-              
-              if(length(min_cond) > 1){
-                print(paste("Error for Tree", tree, "from block", block, "from family", fam))
-              } else if (length(min_cond) == 0){
-                min_cond <- 4
-              }
-            }
-          }
-          
-          if (length(max_cond) > 1){
-            print(paste("Warning: Tree", tree, "from block", block,"from family", fam, "at site", st, "has more than one data point for", max_yr))
-            next #don't know what to do about this so just skip it
-          }
-          
-          if (max_cond == 4){ #the ones that are dead by the end
-            if (min_cond == 4){ #that means it started out dead, which shouldn't count
-              dead <- NA 
-            } else {
-              dead <- 1
-            }
-            
-          } else {
-            dead <- 0
-          }
-          
-          #This is lower down so you can skip a tree if need be
-          iter = iter + 1
-          
-          #Basic Info
-          srcecond[iter, 1] = block
-          srcecond[iter, 2] = fam
-          srcecond[iter, 3] <- famdata[1,4]
-          
-          #Dead
-          srcecond[iter, 4] = dead
-          #Other variables
-          eco <- famdata$Ecoregion[1]
-          srcecond[iter, 5] = eco 
-          
-          ##Distance variables
-          srcecond[iter, 6] = famdata$Distance[1]
-          srcecond[iter, 7] = famdata$Slope[1]
-          srcecond[iter, 8] = famdata$Aspect[1]
-          srcecond[iter, 9] = famdata$ElevDist[1]
-          
-          #Climate Variables
-          srcecond[iter, 10] = famdata$DD.5.sp[1]
-          srcecond[iter, 11] = famdata$eFFP[1]
-          srcecond[iter, 12] = famdata$MSP[1]
-          
-          #Site
-          srcecond[iter, 13] = st  
-        } # end tree loop
 
-      } #End block loop
-    } #end family loop
-    
-    ##Get rid of data that you can't use
-    srcecond = srcecond[srcecond$Family!=0,]
-    srcecond = srcecond[srcecond$Family!= "?",]
-    
-    Conddata[[st_ind]] <- srcecond[!is.na(srcecond$Family),]
-  }
-  
-  names(Conddata) = names(datasets)
-  return(Conddata)
-  
-}
-##############################################################################
-##########################          LEADERS         ##########################    
-##############################################################################
-
-IndivLeads <- function(datasets, sites){
-  Leaddata <- list()
-  st_ind = 0
-  for (sitedata in datasets){
-    st_ind = st_ind + 1
-    st = sites[st_ind]
-    
-    numrow <- length(unique(sitedata$Name)) * length(unique(sitedata$Year)) #number of sources and years
-    srcelead <- as.data.frame(matrix(0, nrow=numrow, ncol=9))
-    colnames(srcelead) <- c("Source", "Year", "Lead1", "Lead2", "Lead3", "Total", "SrcAvgDist", 
-                            "Ecoregion", "EcoAvgDist")
-    
-    iter = 0
-    for (fam in na.omit(unique(sitedata$Source))){
-      if (fam == ''){
-        next
-      }
-      famdata <- na.omit(sitedata[sitedata$Source == fam,])
-      famdata <- famdata[famdata$cond != 4,] #remove dead trees from analysis
-      for (yr in na.omit(unique(famdata$Year))){
-        iter = iter + 1
-        yrdat <- famdata[famdata$Year == yr,]
-        countdat <- as.data.frame(table(yrdat$Leaders))
-        srcelead[iter, 1] = fam
-        srcelead[iter, 2] = yr
-        total = sum(countdat[,2])
-        srcelead[iter, 6] = total
-        for (lead in 1:length(countdat[,1])){
-          numlead = as.numeric(as.vector(countdat[lead, 1]))
-          nums = countdat[lead,2]
-          if (nums == 0){ #to deal with plotting errors
-            nums = 0.0001
-          }
-          srcelead[iter, (numlead+2)] = nums 
-        }
-        
-        srcelead[iter, 7] = mean(na.omit(famdata$Distance[famdata$Source==fam]))
-        srcelead[iter, 8] = famdata$Ecoregion[1]
-        srcelead[iter, 9] = mean(na.omit(sitedata$Distance[sitedata$Ecoregion==famdata$Ecoregion[1]]))
-      }
-    }
-    #Order the sources by average distance to the planting location
-    srcelead$Source <- factor(srcelead$Source, levels = unique(srcelead$Source[order(srcelead$SrcAvgDist)]))
-    srcelead$Ecoregion <- factor(srcelead$Ecoregion, levels = unique(srcelead$Ecoregion[order(srcelead$EcoAvgDist)]))
-    
-    Leaddata[[st_ind]] <- srcelead
-  }
-  
-  names(Leaddata) = names(datasets)
-  return(Leaddata)
-  
-}
 
 ##########################################################################################################
 ##########################################################################################################
+
 WelchsorWMW <- function(dataset, groupind, dind1, dind2=0, ttype="Welch"){
   
   grps <- unique(dataset[,groupind])
