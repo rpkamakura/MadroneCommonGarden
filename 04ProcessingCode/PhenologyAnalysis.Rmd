@@ -37,91 +37,16 @@ sources <- unique(ecoregdat$Source)
 
 Need to add the climate, ecoregion, and distance data
 
-Notably - was recorded in March 2018
--- not sure how much you can say about this just because you don't know if they survived/how they grew with these phenologies (unless you assume that the phenology is not plastic past what you see here)
----might be able to point that out, that by this point you are probably reaching the edge of what plasticity would allow 
 
 ```{r}
 #Data with different Distances
 
 #Data with climatic variables
-DistClimData <- read.csv("Climate Data/033121LocClim.csv")
+DistClimData <- read.csv("../01ExampleRawData/02LocationData/LocClim.csv")
 
-PhenData<- read.csv("Basic Datasets/SF_Phenology.csv")
+PhenData<- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
 
-Lat <- c()
-Long <- c()
-Elev <- c()
-eFFP <- c()
-MSP <- c()
-DD.5.sp <- c()
-eco_vec <- c()
-slope <- c()
-aspect <- c()
-
-for (rw in 1:length(PhenData[,1])){ 
-  
-  src <- PhenData[rw, 6]
-  dc_ind <- match(src, DistClimData$Family)
-  
-  for (dir in 1:3){ #Get distance data
-        col_ind = 3 + dir 
-        val <- DistClimData[dc_ind, col_ind]
-        
-        if (dir == 1){
-          Lat <- append(Lat, val)
-        } else if (dir == 2){
-          Long <- append(Long, val)
-        } else if (dir == 3){
-          Elev <- append(Elev, val)
-        }
-
-  } #End dist loop
-  
-  #Find the ecoregion and source data
-  eco_ind <- match(src, ecoregdat$Family)
-  ecoreg <- ecoregdat$EcoregionShort[eco_ind]
-  eco_vec <- append(eco_vec, ecoreg)
-  
-  #Get Climate data
-  for (clim in 1:7){ 
-    clim_col <- clim+9 #appropriate column in the list
-    
-    clim_val <- DistClimData[dc_ind, clim_col] #get the value you want
-      
-    if (clim == 1){
-      eFFP <- append(eFFP, clim_val)
-    } else if (clim == 2){
-      MSP <- append(MSP, clim_val)
-    } else if (clim == 3){
-      aspect <- append(aspect, clim_val)
-    } else if (clim == 4){
-      slope <- append(slope, clim_val)
-    } else if (clim == 5){
-      next
-    } else if (clim == 6){
-      next
-    } else if (clim == 7){
-      DD.5.sp <- append(DD.5.sp, clim_val)
-    }
-  } #End climate loop
-  
-} #end row loop
-
-#Add the columns you need to the full dataset
-PhenData$Ecoregion <- eco_vec
-PhenData$Lat <- Lat
-PhenData$Long <- Long
-PhenData$Elev <- Elev
-PhenData$eFFP <- eFFP
-PhenData$MSP<- MSP
-PhenData$Aspect <- aspect
-PhenData$Slope <- slope
-PhenData$DD.5.sp <- DD.5.sp
-
-write.csv(PhenData, "033121SF_Phen_AlldataRaw.csv")
 ```
-
 
 ##Data Analysis Section
 
@@ -131,7 +56,6 @@ __Multiple Regression__
 
 ```{r}
 ##For the overal regression
-#PhenData <- read.csv("SF_Phen_AlldataRaw2.csv")
 ctrl <- lmeControl(opt='optim')
 
 paramlist <- c("Ecoregion", "Lat", "Long", "Elev", "eFFP",
@@ -418,14 +342,13 @@ for (phen in 1:3) {
   
 } #end the loop for each phenology type
 
-write.csv(Phen_AICmat, "033121PhenBestMultReg.csv")
+write.csv(Phen_AICmat, "../05ProcessedDataOutputs/PhenBestMultReg.csv")
 ```
 
 
 __In Depth Multiple Regression Results__
 
 ```{r}
-#regdata <- read.csv("PhenBestMultReg2.csv")
 regdata <- as.data.frame(Phen_AICmat)
 paramlist <- c("Ecoregion", "Lat", "Long", "Elev", "eFFP", "MSP", "Slope", "Aspect", "DD.5.sp")
 
@@ -593,7 +516,7 @@ for (phen in 1:3) {#For each response variable
 } #dependent variable for loop 
 
   ##Write data to CSV
-   write.csv(overal_mod, "033121Phen_BestModelResults.csv")
-   write.csv(param_mat, "033121Phen_BestParamResults.csv")
+   write.csv(overal_mod, "../05ProcessedDataOutputs/Phen_BestModelResults.csv")
+   write.csv(param_mat, "../05ProcessedDataOutputs/Phen_BestParamResults.csv")
 
 ```

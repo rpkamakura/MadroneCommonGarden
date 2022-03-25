@@ -3,10 +3,9 @@ General Analyses
 * IterateThroughAllModels -> try every combination of environmental variables to 
 see which ones have the lowest AIC values
 * PullOutRegressions -> for the ones with the lowest AIC values, pull out the 
-parameter estimates 
-* PhenologyAnalyses -> both of the above but for the phenology data
-* CrossValidationOutliers -> perform the K-fold cross validation and look for
-consistent outliers in terms of performance across sites
+parameter estimates (includes Q-Q plots)
+* PhenologyAnalyses -> both of the above but for the phenology data (includes Q-Q plots)
+* CrossValidationOutliers -> perform the K-fold cross validation
 
 
 

@@ -1000,11 +1000,13 @@ for (s in 1:4){ #sites
   
   locs_rescale <- as.data.frame(locs_rescale[,c(1:4, 10, 19, 48, 79)])
   
+  #create the clusters
   c <- fviz_nbclust(locs_rescale, kmeans, method="silhouette")
   print(c)
   clusters <- kmeans(locs_rescale, centers = cs[s])
   #print(clusters)
 
+  #pull out the local families
   cg_cl <- clusters$cluster[[st_ind[s]]]
   fams_CgClust <- names(clusters$cluster[clusters$cluster==cg_cl])
   #cg_mn <- clusters$centers[cg_cl,]
@@ -1021,6 +1023,7 @@ for (s in 1:4){ #sites
 
   }
 
+  #The most distant cluster
   fams_OClust <- names(clusters$cluster[clusters$cluster==fur_clust])
 
   ##GET THE AVERAGES
@@ -1083,7 +1086,7 @@ for (s in 1:4){ #sites
   names(dbk_df) <- c("Site", "Group", "DBK","NumLoc","NumDist", "AIC")
   
   
-  dbk_df$Site <- rep("Site", tot_len)
+  dbk_df$Site <- rep(site, tot_len)
   dbk_df$Group[1:a] <- rep("Local", a)
   dbk_df$DBK[1:a] <- cg_cl_dbk
   dbk_df$DBK[(a + 1):(a+b)] <- o_cl_dbk
@@ -1117,7 +1120,7 @@ for (s in 1:4){ #sites
   names(mort_df) <- c("Site", "Group", "Mort","NumLoc","NumDist", "AIC")
   
   
-  mort_df$Site <- rep("Site", tot_len)
+  mort_df$Site <- rep(site, tot_len)
   mort_df$Group[1:a] <- rep("Local", a)
   mort_df$Mort[1:a] <- cg_cl_mort
   mort_df$Mort[(a + 1):(a+b)] <- o_cl_mort
