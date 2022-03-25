@@ -1,0 +1,156 @@
+---
+title: "VariabilityGraphs"
+author: "Renata Poulton Kamakura"
+date: "May 26, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(sjPlot)
+library(ggpubr)
+
+source("PerSiteAnalys3.R")
+source("RegressionFuncs3.R")
+
+setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+
+Fulldatafiles1213 <- list("033121PHFulldata12to13.csv", "033121PVFulldata12to13.csv", "033121SFFulldata12to13.csv", "033121SOFulldata12to13.csv")
+
+Fulldatafiles1415 <- list("033121PHFulldata14to15.csv", "033121PVFulldata14to15.csv", "033121SFFulldata14to15.csv", "033121SOFulldata14to15.csv")
+
+sitesdata1213 <- lapply(Fulldatafiles1213, read.csv)
+sitesdata1415 <- lapply(Fulldatafiles1415, read.csv)
+
+names(sitesdata1213) <- c("PH1213", "PV1213", "SF1213", "SO1213") 
+
+names(sitesdata1415) <- c("PH1415", "PV1415", "SF1415", "SO1415")
+
+sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
+
+setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Data Analysis") #easier directory to work from
+
+#For 12-13
+GRDBKData1213 <- PercGrowth_byTree(sitesdata1213, c(12,13), sites)
+MortData1213 <- IndivCond_final(sitesdata1213, sites) #Mortality Data
+
+#For 14-15
+GRDBKData1415 <- PercGrowth_byTree(sitesdata1415, c(14,15), sites)
+MortData1415 <- IndivCond_final(sitesdata1415, sites) #Mortality Data
+
+```
+
+So really what you want is a graph showing the variability in outcomes in the different time periods. Maybe boxplots that have max and min as their bars? 
+
+##Functions to Streamline
+
+```{r}
+getlen <- function(lst){ #get the total number of rows in a list of dfs
+  l <- 0
+  for (elem in lst){
+    l <- l + length(elem[,1]) #just getting the number of rows
+  }
+  
+  return(l)
+}
+
+extractDat <- function(list1, list2=NULL, TarCol, sites, Conds, output_df){
+  st <- 0
+  
+  for (l in 1:length(list1)){
+    l_dat <- list1[[l]][,TarCol] #get your target response 
+    
+    dat_len <- length(l_dat) #number of rows
+    st_nm <- rep(sites[l], dat_len) #Site name
+    
+    if(length((Conds)) > 1){ #depending on how many conditions you have
+      con_nm <- rep(Conds[1], dat_len) #condition name
+    } else {
+      con_nm <- rep(COnds, dat_len)
+    }
+    
+    output_df[(st+1):(st + dat_len), 1] <- st_nm
+    output_df[(st+1):(st + dat_len), 2] <- con_nm
+    output_df[(st+1):(st + dat_len), 3] <- l_dat
+    
+    st <- st + dat_len
+  } 
+  
+  if (!is.null(list2)){
+    
+    for (l2 in 1:length(list2)){
+      l_dat <- list2[[l2]][,TarCol] #get your target response 
+      
+      dat_len <- length(l_dat) #number of rows
+      st_nm <- rep(sites[l2], dat_len) #Site name
+      con_nm <- rep(Conds[2], dat_len) #condition name
+      
+      output_df[(st+1):(st + dat_len), 1] <- st_nm
+      output_df[(st+1):(st + dat_len), 2] <- con_nm
+      output_df[(st+1):(st + dat_len), 3] <- l_dat
+      
+      st <- st + dat_len
+    }
+  }
+  
+  return(output_df)
+}
+```
+
+
+```{r}
+##Need to somehow combine them so you have a column with site, a column with year or site condition, and then the value you want
+
+baseLenGrD <- getlen(GRDBKData1213)
+drLenGrD <- getlen(GRDBKData1415)
+
+baseLenM <- getlen(MortData1213)
+drLenM <- getlen(MortData1415)
+
+sites <- c("PH", "PV", "SF", "SO")
+
+##GR
+colnms <- c("Site", "Condition", "Annual_Growth")
+GR_df <- as.data.frame(matrix(0, nrow = (baseLenGrD + drLenGrD), ncol = 3))
+names(GR_df) <- colnms
+
+GRPlotDf <- extractDat(GRDBKData1213, list2=GRDBKData1415, 7, sites, c("Baseline", "Stress"), GR_df)
+
+GR_p<-ggplot(GRPlotDf, aes(x=Site, y=Annual_Growth, fill=Condition)) +
+  geom_boxplot() + scale_fill_manual(values=c("grey50", "grey96")) + labs(y= "Annual Growth (cm)") + theme_classic()
+
+
+##DBK
+colnms <- c("Site", "Condition", "Annual_Dieback")
+DBK_df <- as.data.frame(matrix(0, nrow = (baseLenGrD + drLenGrD), ncol = 3))
+names(DBK_df) <- colnms
+
+DBKPlotDf <- extractDat(GRDBKData1213, list2=GRDBKData1415, 9, sites, c("Baseline", "Stress"), DBK_df)
+
+DBK_p<-ggplot(DBKPlotDf, aes(x=Site, y=Annual_Dieback, fill=Condition)) +
+  geom_boxplot() + scale_fill_manual(values=c("grey50", "grey96")) + labs(y= "Annual Dieback (cm)") + theme_classic()
+
+##Mort
+colnms <- c("Site", "Condition", "Annual_Mortality")
+Mort_df <- as.data.frame(matrix(0, nrow = (baseLenM + drLenM), ncol = 3))
+names(Mort_df) <- colnms
+
+MortPlotDf <- extractDat(MortData1213, list2=MortData1415, 6, sites, c("Baseline", "Stress"), Mort_df)
+
+Mort_p<-ggplot(MortPlotDf, aes(x=Site, y=Annual_Mortality, fill=Condition)) +
+  geom_boxplot() + scale_fill_manual(values=c("grey50", "grey96")) + labs(y= "Annual Percent Mortality") + theme_classic()
+
+
+##Now Just Print them out
+
+ggarrange(GR_p, DBK_p, Mort_p, 
+          labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2, common.legend = TRUE, legend = "left")
+
+
+
+```

@@ -15,7 +15,7 @@ library(nlme)
 library(plotly)
 
 #To pull in functions to calculate mortality and growth and health 
-source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 

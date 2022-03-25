@@ -1,15 +1,23 @@
 General Analyses
 
-* IterateThroughAllModels -> try every combination of environmental variables to 
+* 01IterateThroughAllModels -> try every combination of environmental variables to 
 see which ones have the lowest AIC values
-* PullOutRegressions -> for the ones with the lowest AIC values, pull out the 
+
+* 02PullOutRegressions -> for the ones with the lowest AIC values, pull out the 
 parameter estimates (includes Q-Q plots)
-* PhenologyAnalyses -> both of the above but for the phenology data (includes Q-Q plots)
-* CrossValidationOutliers -> perform the K-fold cross validation
+
+* 03PhenologyAnalyses -> both of the above but for the phenology data (includes Q-Q plots)
+
+* 04CrossValidationOutliers -> perform the K-fold cross validation
+
+* 07Percentiles -> shows you what percentile the families are for those that have significant
+differences in their mean growth, dieback, mortality, or phenology (at p-value of 0.05)
+- note: for simulated data you should see mostly 0s in the output because they are all
+randomly generated and should not significantly differ 
 
 
 
 Useful Visualizations
 
-* Abiotic Vis - look at various abiotic variables to look at their distributions
-* Basic Vis - create some useful figures to better understand your results
+* 04AbioticVis - look at various abiotic variables to look at their distributions
+* 05BasicVis - create some useful figures to better understand your results

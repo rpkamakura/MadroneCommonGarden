@@ -32,7 +32,7 @@ library(ggpubr)
 library(MuMIn) #for the GLMM r-quared
 
 #pull in code to get growth, dieback, and mortality
-source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 

@@ -20,8 +20,8 @@ library(MuMIn)
 
 #pull in the functions we need to get growth/mortality/dieback and for the 
 #regressions 
-source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
-source("../04ProcessingCode/BackgroundFunctions/RegressionFuncs.R")
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/02RegressionFuncs.R")
 
 options(stringsAsFactors = FALSE)
 

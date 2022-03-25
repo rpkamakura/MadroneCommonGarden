@@ -1,0 +1,503 @@
+---
+title: "Percentiles"
+author: "RPK"
+date: "July 22, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(plyr)
+library(survival)
+library(nlme)
+library(gnm)
+library(MuMIn)
+library(dplyr)
+library(ggpubr)
+library(data.table)
+
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
+
+options(stringsAsFactors = FALSE)
+
+#Names
+years <- c(12, 13, 14, 15)
+sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
+
+#Ecoregion data
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
+ecoregions <- unique(ecoregdat$EcoregionShort)
+
+#Sources
+sources <- unique(ecoregdat$Source)
+
+##Get the full data files
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
+sitesdata <- lapply(pertfiles,read.csv)
+names(sitesdata) <- sites
+```
+
+```{r}
+PhenData<- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
+
+for (phen in 1:3){ #for each phenological variable measured
+  
+  if (phen == 1){
+    fam_fit <- aov(Bud.Swollen ~ Name, data=PhenData)
+    src_fit <- aov(Bud.Swollen ~ Source, data=PhenData)
+    
+    print("Data Analysis for Bud Swelling")
+    
+
+    
+  } else if (phen == 2){
+    fam_fit <- aov(Bud.Elongating ~ Name, data=PhenData)
+    src_fit <- aov(Bud.Elongating ~ Source, data=PhenData)
+    
+    print("Data Analysis for Bud Elongation")
+    
+    
+  } else if (phen == 3){
+    fam_fit <- aov(Leaves.emerging ~ Name, data=PhenData)
+    src_fit <- aov(Leaves.emerging ~ Source, data=PhenData)
+    
+    print("Data Analysis for Leaf Emergence")
+    
+  }
+
+  ##Source
+  num_src <- length(unique(PhenData$Source))
+  
+  src_pair <- as.matrix(TukeyHSD(src_fit)[[1]]) ##The problem is that this printout is monstrous
+  src_pairs <- names(src_pair[,1])
+  
+  nsig_src <- sum(src_pair[,4] < 0.05)
+  src_mat <- as.data.frame(matrix(0, ncol = 5, nrow = num_src))
+  names(src_mat) <- c("Source", "NumL", "PercL", "NumG", "PercG")
+  src_mat$Source <- unique(PhenData$Source)
+  
+  if (nsig_src > 0.6*num_src) { #cutoff to at least have one src with workable results
+    SRC_sig05_names <- src_pairs[src_pair[,4] < 0.05]
+    SRC_sig05_res <- as.vector(src_pair[src_pair[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(SRC_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      src1 <- split_nms[[rw]][[1]][1]
+      src1match <- match(src1, src_mat$Source)
+      src2 <- split_nms[[rw]][[1]][2]
+      src2match <- match(src2, src_mat$Source)
+      
+      if (SRC_sig05_res[rw] > 0){ #If src1 > src2
+        src_mat[src1match, 4] = src_mat[src1match, 4] + 1
+        src_mat[src2match, 2] = src_mat[src2match, 2] + 1
+      } else { #If src2 > src1
+        src_mat[src1match, 2] = src_mat[src1match, 2] + 1
+        src_mat[src2match, 4] = src_mat[src2match, 4] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    src_mat$PercL <-  src_mat$NumL/num_src
+    src_mat$PercG <-  src_mat$NumG/num_src
+    
+    
+  }
+  
+  ##Family
+  num_fam <- length(unique(PhenData$Name))
+  
+  fam_pair <- as.matrix(TukeyHSD(fam_fit)[[1]]) 
+  fam_pairs <- names(fam_pair[,1])
+  
+  nsig_fam <- sum(fam_pair[,4] < 0.05)
+  fam_mat <- as.data.frame(matrix(0, ncol = 5, nrow = num_fam))
+  names(fam_mat) <- c("Family", "NumL", "PercL", "NumG", "PercG")
+  fam_mat$Family <- unique(PhenData$Name)
+  
+  if (nsig_fam > 0.6*num_fam){ #cutoff to at least have one src with workable results
+    FAM_sig05_names <- fam_pairs[fam_pair[,4] < 0.05]
+    FAM_sig05_res <- as.vector(fam_pair[fam_pair[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(FAM_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      fam1 <- split_nms[[rw]][[1]][1]
+      fam1match <- match(fam1, fam_mat$Family)
+      fam2 <- split_nms[[rw]][[1]][2]
+      fam2match <- match(fam2, fam_mat$Family)
+      
+      if (FAM_sig05_res[rw] > 0){ #If src1 > src2
+        fam_mat[fam1match, 4] = fam_mat[fam1match, 4] + 1
+        fam_mat[fam2match, 2] = fam_mat[fam2match, 2] + 1
+      } else { #If src2 > src1
+        fam_mat[fam1match, 2] = fam_mat[fam1match, 2] + 1
+        fam_mat[fam2match, 4] = fam_mat[fam2match, 4] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    fam_mat$PercL <-  fam_mat$NumL/num_fam
+    fam_mat$PercG <-  fam_mat$NumG/num_fam
+    
+    
+  }
+  
+    
+  if (phen == 1){
+    write.csv(src_mat, "../05ProcessedDataOutputs/02PhenPerc/SRC_BSW.csv")
+    write.csv(fam_mat, "../05ProcessedDataOutputs/02PhenPerc/FAM_BSW.csv")
+    
+  } else if (phen == 2){
+    write.csv(src_mat, "../05ProcessedDataOutputs/02PhenPerc/SRC_BEL.csv")
+    write.csv(fam_mat, "../05ProcessedDataOutputs/02PhenPerc/FAM_BEL.csv")
+
+  } else if (phen == 3){
+    write.csv(src_mat, "../05ProcessedDataOutputs/02PhenPerc/SRC_LEM.csv")
+    write.csv(fam_mat, "../05ProcessedDataOutputs/02PhenPerc/FAM_LEM.csv")
+    
+   }
+  
+
+}
+
+
+```
+
+
+##TG, DBK, and Mort
+```{r}
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites) 
+condata <- IndivCond_final(sitesdata, sites)
+
+for (st in 1:length(sites)){ #site loop
+  
+  st_nm <- sites[st]
+  ##General Stuff
+  print(paste("Analyses at", st_nm))
+  
+  st_dat <- GrowthRates[[st]]
+  stmort_dat <- condata[[st]]
+
+  ###BY SOURCE#######################################################
+  Nsources <- length(unique(st_dat$Source))
+  NMortsources <- length(unique(stmort_dat$Source))
+  
+  sources <- unique(c(st_dat$Source, stmort_dat$Source))
+  num_src <- length(sources)
+  
+  src_mat <- as.data.frame(matrix(0, ncol = 13, nrow = num_src)) 
+  names(src_mat) <- c("Source", "TGNumL", "TGPercL", "TGNumG", "TGPercG", "DBKNumL", 
+                          "DBKPercL", "DBKNumG", "DBKPercG", "MortNumL", "MortPercL", 
+                          "MortNumG", "MortPercG")
+  
+  src_mat$Source <- sources
+  
+  ##TotGrowth############################
+  SRCfit_tg <- aov(TotGrowth ~ Source, data=st_dat)
+  SRCpairwise_tg <- as.matrix(TukeyHSD(SRCfit_tg)[[1]]) 
+  SRCTG_pairs <- names(SRCpairwise_tg[,1]) #names of the pairs
+  
+  nsig_srctg <- sum(SRCpairwise_tg[,4] < 0.05)
+  
+  if (nsig_srctg > 0.6*Nsources){ #cutoff to at least have one src with workable results
+    TGsrc_sig05_names <- SRCTG_pairs[SRCpairwise_tg[,4] < 0.05]
+    TGsrc_sig05_res <- as.vector(SRCpairwise_tg[SRCpairwise_tg[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(TGsrc_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      src1 <- split_nms[[rw]][[1]][1]
+      src1match <- match(src1, src_mat$Source)
+      src2 <- split_nms[[rw]][[1]][2]
+      src2match <- match(src2, src_mat$Source)
+      
+      if (TGsrc_sig05_res[rw] > 0){ #If src1 > src2
+        src_mat[src1match, 4] = src_mat[src1match, 4] + 1
+        src_mat[src2match, 2] = src_mat[src2match, 2] + 1
+      } else { #If src2 > src1
+        src_mat[src1match, 2] = src_mat[src1match, 2] + 1
+        src_mat[src2match, 4] = src_mat[src2match, 4] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    src_mat$TGPercL <-  src_mat$TGNumL/(Nsources - 1)
+    src_mat$TGPercG <-  src_mat$TGNumG/(Nsources - 1)
+    
+    
+  } #cutoff loop
+
+  
+  ##NumDieback########
+  SRCfit_dbk <- aov(AmntDieback ~ Source, data=st_dat)
+  SRCpairwise_dbk <- as.matrix(TukeyHSD(SRCfit_dbk)[[1]])
+  SRCDBK_pairs <- names(SRCpairwise_dbk[,1]) #names of the pairs
+  
+  nsig_srcdbk <- sum(SRCpairwise_dbk[,4] < 0.05)
+  
+  if (nsig_srcdbk > 0.6*Nsources){ #cutoff to at least have one src with workable results
+    DBKsrc_sig05_names <- SRCDBK_pairs[SRCpairwise_dbk[,4] < 0.05]
+    DBKsrc_sig05_res <- as.vector(SRCpairwise_dbk[SRCpairwise_dbk[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(DBKsrc_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      src1 <- split_nms[[rw]][[1]][1]
+      src1match <- match(src1, src_mat$Source)
+      src2 <- split_nms[[rw]][[1]][2]
+      src2match <- match(src2, src_mat$Source)
+      
+      if (DBKsrc_sig05_res[rw] > 0){ #If src1 > src2
+        src_mat[src1match, 8] = src_mat[src1match, 8] + 1
+        src_mat[src2match, 6] = src_mat[src2match, 6] + 1
+      } else { #If src2 > src1
+        src_mat[src1match, 6] = src_mat[src1match, 6] + 1
+        src_mat[src2match, 8] = src_mat[src2match, 8] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    src_mat$DBKPercL <-  src_mat$DBKNumL/(Nsources - 1)
+    src_mat$DBKPercG <-  src_mat$DBKNumG/(Nsources - 1)
+    
+    
+  } #cutoff loop
+  
+    
+  
+  #Mortality###################
+  SRCMortfit <- aov(PercDead ~ Source, data=stmort_dat)
+  SRCpairwise_mort <- as.matrix(TukeyHSD(SRCMortfit)[[1]]) 
+  SRCMORT_pairs <- names(SRCpairwise_mort[,1]) #names of the pairs
+  
+  nsig_srcmort <- sum(SRCpairwise_mort[,4] < 0.05)
+  
+  if (nsig_srcmort > 0.6*NMortsources){ #cutoff to at least have one src with workable results
+    Mortsrc_sig05_names <- SRCMORT_pairs[SRCpairwise_mort[,4] < 0.05]
+    Mortsrc_sig05_res <- as.vector(SRCpairwise_mort[SRCpairwise_mort[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(Mortsrc_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      src1 <- split_nms[[rw]][[1]][1]
+      src1match <- match(src1, src_mat$Source)
+      src2 <- split_nms[[rw]][[1]][2]
+      src2match <- match(src2, src_mat$Source)
+      
+      if (Mortsrc_sig05_res[rw] > 0){ #If src1 > src2
+        src_mat[src1match, 12] = src_mat[src1match, 12] + 1
+        src_mat[src2match, 10] = src_mat[src2match, 10] + 1
+      } else { #If src2 > src1
+        src_mat[src1match, 10] = src_mat[src1match, 10] + 1
+        src_mat[src2match, 12] = src_mat[src2match, 12] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    src_mat$MortPercL <-  src_mat$MortNumL/NMortsources
+    src_mat$MortPercG <-  src_mat$MortNumG/NMortsources
+    
+    
+  } #cutoff loop
+  
+  write.csv(src_mat, print(paste("Percent_SRC_0609_", st_nm, ".csv", sep="")))
+  
+  
+  ###BY FAMILY#########################################
+  
+  ##Family
+  N_fam <- length(unique(st_dat$Family))
+  Nmort_fam <- length(unique(stmort_dat$Family))
+  
+  families <- unique(c(st_dat$Family, stmort_dat$Family))
+  num_fam <- length(families)
+  
+  
+  fam_mat <- as.data.frame(matrix(0, ncol = 13, nrow = num_fam)) 
+  names(fam_mat) <- c("Family", "TGNumL", "TGPercL", "TGNumG", "TGPercG", "DBKNumL", 
+                          "DBKPercL", "DBKNumG", "DBKPercG", "MortNumL", "MortPercL", 
+                          "MortNumG", "MortPercG")
+  
+  fam_mat$Family <- families
+  
+  ##TotGrowth############################
+  Famfit_tg <- aov(TotGrowth ~ Family, data=st_dat)
+  Fampairwise_tg <- as.matrix(TukeyHSD(Famfit_tg)[[1]]) 
+  FamTG_pairs <- names(Fampairwise_tg[,1]) #names of the pairs
+  
+  nsig_famtg <- sum(Fampairwise_tg[,4] < 0.05)
+  
+  if (nsig_famtg > 0.6*N_fam){ #cutoff to at least have one src with workable results
+    TGfam_sig05_names <- FamTG_pairs[Fampairwise_tg[,4] < 0.05]
+    TGfam_sig05_res <- as.vector(Fampairwise_tg[Fampairwise_tg[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(TGfam_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      fam1 <- split_nms[[rw]][[1]][1]
+      fam1match <- match(fam1, fam_mat$Family)
+      fam2 <- split_nms[[rw]][[1]][2]
+      fam2match <- match(fam2, fam_mat$Family)
+      
+      if (TGfam_sig05_res[rw] > 0){ #If src1 > src2
+        fam_mat[fam1match, 4] = fam_mat[fam1match, 4] + 1
+        fam_mat[fam2match, 2] = fam_mat[fam2match, 2] + 1
+      } else { #If src2 > src1
+        fam_mat[fam1match, 2] = fam_mat[fam1match, 2] + 1
+        fam_mat[fam2match, 4] = fam_mat[fam2match, 4] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    fam_mat$TGPercL <-  fam_mat$TGNumL/(N_fam - 1)
+    fam_mat$TGPercG <-  fam_mat$TGNumG/(N_fam - 1)
+    
+    
+  } #cutoff loop
+
+  
+  ##NumDieback########
+  Famfit_dbk <- aov(AmntDieback ~ Family, data=st_dat)
+  Fampairwise_dbk <- as.matrix(TukeyHSD(Famfit_dbk)[[1]])
+  FamDBK_pairs <- names(Fampairwise_dbk[,1]) #names of the pairs
+  
+  nsig_famdbk <- sum(Fampairwise_dbk[,4] < 0.05)
+  
+  if (nsig_famdbk > 0.6*N_fam){ #cutoff to at least have one src with workable results
+    DBKfam_sig05_names <- FamDBK_pairs[Fampairwise_dbk[,4] < 0.05]
+    DBKfam_sig05_res <- as.vector(Fampairwise_dbk[Fampairwise_dbk[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(DBKfam_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      fam1 <- split_nms[[rw]][[1]][1]
+      fam1match <- match(fam1, fam_mat$Family)
+      fam2 <- split_nms[[rw]][[1]][2]
+      fam2match <- match(fam2, fam_mat$Family)
+      
+      if (DBKfam_sig05_res[rw] > 0){ #If src1 > src2
+        fam_mat[fam1match, 8] = fam_mat[fam1match, 8] + 1
+        fam_mat[fam2match, 6] = fam_mat[fam2match, 6] + 1
+      } else { #If src2 > src1
+        fam_mat[fam1match, 6] = fam_mat[fam1match, 6] + 1
+        fam_mat[fam2match, 8] = fam_mat[fam2match, 8] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    fam_mat$DBKPercL <-  fam_mat$DBKNumL/(N_fam - 1)
+    fam_mat$DBKPercG <-  fam_mat$DBKNumG/(N_fam - 1)
+    
+    
+  } #cutoff loop
+  
+    
+  
+  #Mortality###################
+  FamMortfit <- aov(PercDead ~ Family, data=stmort_dat)
+  Fampairwise_mort <- as.matrix(TukeyHSD(FamMortfit)[[1]]) 
+  FamMORT_pairs <- names(Fampairwise_mort[,1]) #names of the pairs
+  
+  nsig_fammort <- sum(Fampairwise_mort[,4] < 0.05)
+  
+  if (nsig_fammort > 0.6*Nmort_fam){ #cutoff to at least have one src with workable results
+    Mortfam_sig05_names <- FamMORT_pairs[Fampairwise_mort[,4] < 0.05]
+    Mortfam_sig05_res <- as.vector(Fampairwise_mort[Fampairwise_mort[,4] < 0.05,1]) #The differences between the two
+    
+    split_nms <- lapply(Mortfam_sig05_names, strsplit, split="-")
+    
+    for (rw in 1:length(split_nms)) {
+      fam1 <- split_nms[[rw]][[1]][1]
+      fam1match <- match(fam1, fam_mat$Family)
+      fam2 <- split_nms[[rw]][[1]][2]
+      fam2match <- match(fam2, fam_mat$Family)
+      
+      if (Mortfam_sig05_res[rw] > 0){ #If src1 > src2
+        fam_mat[fam1match, 12] = fam_mat[fam1match, 12] + 1
+        fam_mat[fam2match, 10] = fam_mat[fam2match, 10] + 1
+      } else { #If src2 > src1
+        fam_mat[fam1match, 10] = fam_mat[fam1match, 10] + 1
+        fam_mat[fam2match, 12] = fam_mat[fam2match, 12] + 1
+        
+      } #loops for sign
+      
+    } #row loop
+    fam_mat$MortPercL <-  fam_mat$MortNumL/Nmort_fam
+    fam_mat$MortPercG <-  fam_mat$MortNumG/Nmort_fam
+    
+    
+  } #cutoff loop
+  
+  write.csv(fam_mat, print(paste("../05ProcessedDataOutputs/03PerfPerc/Percent_Fam", st_nm, ".csv", sep="")))
+  
+  
+
+
+} 
+
+```
+
+```{r fam vis}
+
+srcs <- c("VE", "ZE", "WL", "SA", "LA", "CC")
+
+sites <- c("PV", "PH", "SF", "SO")
+
+GrowthRates = IndivHeights_byTree(sitesdata, years, sites) 
+condata <- IndivCond_final(sitesdata, sites)
+
+GR_data <- rbindlist(GrowthRates)
+Mort_data <- rbindlist(condata)
+Mort_data$PercDead <- 100*(Mort_data$PercDead)
+
+#keep<- GR_data[GR_data$Source %in% sources,]
+avg_gr <- GR_data[!GR_data$Source %in% srcs,]
+
+avg_mort <- Mort_data[!Mort_data$Source %in% srcs,]
+
+#Change the sources
+new_df <- GR_data
+new_df[!GR_data$Source %in% srcs, "Source"] <- rep("Other", length(avg_gr[,1]))
+new_mort <- Mort_data
+new_mort[!Mort_data$Source %in% srcs, "Source"] <- rep("Other", length(avg_mort[,1]))
+
+p_gr <- ggplot(new_df, aes(x=Source, y=TotGrowth, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Other", "CC", "LA", "SA", "WL", "ZE", "VE")) + 
+  scale_fill_brewer(palette="YlGnBu") +
+  xlab("") + ylab("Total Growth (cm)") + ggtitle("A")
+
+p_dbk <- ggplot(new_df, aes(x=Source, y=AmntDieback, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Other", "CC", "LA", "SA", "WL", "ZE", "VE"))+ 
+  scale_fill_brewer(palette="YlGnBu") +
+  xlab("") + ylab("Dieback (cm)") + ggtitle("B")
+
+p_mort <- ggplot(new_mort, aes(x=Source, y=PercDead, fill=Site)) + 
+  geom_boxplot() + 
+  scale_x_discrete(limits=c("Other", "CC", "LA", "SA", "WL", "ZE", "VE")) + 
+  scale_fill_brewer(palette="YlGnBu") +
+  xlab("Source") + ylab("Percent Mortality") + ggtitle("C")
+
+print(p_gr)
+print(p_dbk)
+print(p_mort)
+  
+# sts <- c("PH", "PV", "SF", "SO")
+# for (s in 1:4){
+#   
+#   st <- sts[s]
+#   
+#   nw_df <- new_df[new_df$Site == st,]
+#   nw_mort <- new_mort[new_mort$Site == st,]
+#     
+#   compare_means(TotGrowth ~ Source, data =nw_df, method = "wilcox.test")
+#   compare_means(PercDead ~ Source, data =nw_mort, method = "wilcox.test")
+# }
+
+grid.arrange(p_gr, p_dbk, p_mort, nrow = 3)
+
+```
