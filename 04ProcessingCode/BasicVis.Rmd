@@ -8,25 +8,31 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+library(sjPlot) #for plotting
 library(ggplot2)
+
+library(gridExtra) #data cleaning/organization
 library(plyr)
 library(dplyr)
 library(nlme)
-library(psychometric)
+#library(psychometric)
+library(data.table)
+
+#regressions
+library(lme4)
 library(MASS)
 library(gnm)
-library(data.table)
-library(sjPlot)
-library(lme4)
-library(gridExtra)
+
 library(cluster)
-library(factoextra)
-library(ecodist)
+library(factoextra) #for k means clustering
+
+library(ecodist) #calculate dissimilarity/distance metrics
 library(GLMMadaptive)
 library(ggpubr)
-source("032521PerSiteAnalys.R")
+library(MuMIn) #for the GLMM r-quared
 
-#setwd("Madrone4/Madrone3/Basic Datasets") #easier directory to work from
+#pull in code to get growth, dieback, and mortality
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -35,14 +41,14 @@ years <- c(12, 13, 14, 15)
 #sites <- c("PuyallupHill","PuyallupValley", "Starker", "Sprague")
 sites <- c("PH", "PV", "SF", "SO")
 #Ecoregion data
-ecoregdat <- read.csv("../02Lvl1Processed/EcoregionData.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 ecoregions <- unique(ecoregdat$EcoregionShort)
 
 #Sources
 sources <- unique(ecoregdat$Source)
 
 ##Get the full data files
-pertfiles <- list("../02Lvl1Processed/033121PHFulldata.csv", "../02Lvl1Processed/033121PVFulldata.csv", "../02Lvl1Processed/033121SFFulldata.csv", "../02Lvl1Processed/033121SOFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles,read.csv)
 names(sitesdata) <- sites
 
@@ -50,17 +56,15 @@ names(sitesdata) <- sites
 
 ##order is BL, PH, PV, PY, SF, SO
 eco_base <- c("CORA", "PULO", "PULO", "PULO", "WIVA", "KLMT")
-bFFP_base <- c(16, 84, 81, 82.5, 96, 110)
+eFFP_base <- c(16, 84, 81, 82.5, 96, 110)
 
 ```
 
 ##General Notes
-https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
 
 _Baselines:_
 
 Ecoregion 
-BL <- CORA
 SO <- KLMT
 SF <- WIVA
 PV <- PULO
@@ -71,7 +75,6 @@ Dist, NSDist, EWDist, ElevDist
 x = 0 for all
 
 bFFP
-BL <- 16
 SO <- 110
 SF <- 96
 PV <- 81
@@ -79,7 +82,6 @@ PH <- 84
 PY <- 82.5
 
 eFFP
-BL <- 361
 SO <- 298
 SF <- 318
 PV <- 319
@@ -87,7 +89,6 @@ PH <- 318
 PY <- 318.5
 
 FFP
-BL <- 345
 SO <- 188
 SF <- 222
 PV <- 238
@@ -102,12 +103,6 @@ WIVA_loc <- c("AK", "OR", "VE", "WL", "WV", "ZE")
 
 KLMT_loc <- c("BK", "CP", "CY", "DY", "GP", "HC", "KL", "MG", "RA")
 
-Visualization tips
-- to look at the source level differences:
-  - make the X axis grouped by source with the y being mortality and color-coded by ecoregion (highlighting most local)
-    - maybe order them by highest mortalty rate
-    
-- do the same thing with all the rest. Then you should be able to see potential trends and look at the individual sources to compare. You can also look for potential drivers of trends and identify specific families
 
 ##Growth Rates
 
@@ -117,7 +112,7 @@ GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
 ##Puyallup Hill -- Dist, eFFP
 PH <- GrowthRates[[1]]
 PH <- PH[!is.na(PH$TotGrowth),] ##need to fix this in the function
-PH_bFFP <- ggplot(PH, aes(x=eFFP, y=TotGrowth)) + 
+PH_eFFP <- ggplot(PH, aes(x=eFFP, y=TotGrowth)) + 
   geom_point(size = 3) + 
   geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
 
@@ -125,12 +120,12 @@ PH_Eco <- ggplot(PH, aes(x=Ecoregion, y=TotGrowth)) +
   geom_boxplot()
 
 print(PH_Eco)
-print(PH_bFFP)
+print(PH_eFFP)
 
 ##Puyallup Valley -- Ecoregion, Dist, eFFP
 PV <- GrowthRates[[2]]
 PV <- PV[!is.na(PV$TotGrowth),] ##need to fix this in the function
-PV_bFFP <- ggplot(PV, aes(x=bFFP, y=TotGrowth)) + 
+PV_eFFP <- ggplot(PV, aes(x=eFFP, y=TotGrowth)) + 
   geom_point(size = 3) + 
   geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
 
@@ -138,7 +133,7 @@ PV_Eco <- ggplot(PV, aes(x=Ecoregion, y=TotGrowth)) +
   geom_boxplot()
 
 print(PV_Eco)
-print(PV_bFFP)
+print(PV_eFFP)
 
 ##Starker Forest -- Ecoregion, Dist, Slipe, Aspect, eFFP, MSP, DD5_sp
 SF <- GrowthRates[[3]]
@@ -151,14 +146,14 @@ SF_Dist <- ggplot(SF, aes(x=Dist, y=TotGrowth)) +
   geom_point(size = 3) + 
   geom_smooth(method="lm", color='grey')
 
-SF_bFFP <- ggplot(SF, aes(x=bFFP, y=TotGrowth)) + 
+SF_eFFP <- ggplot(SF, aes(x=eFFP, y=TotGrowth)) + 
   geom_point(size = 3) + 
   geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
 
 
 print(SF_Eco)
 print(SF_Dist)
-print(SF_bFFP)
+print(SF_eFFP)
 
 
 ##Sprague Orchard -- Ecoregion, ElevDist
@@ -172,13 +167,13 @@ SO_Dist <- ggplot(SO, aes(x=Dist, y=TotGrowth)) +
   geom_point(size = 3) + 
   geom_smooth(method="lm", color='grey')
 
-SO_bFFP <- ggplot(SO, aes(x=bFFP, y=TotGrowth)) + 
+SO_eFFP <- ggplot(SO, aes(x=eFFP, y=TotGrowth)) + 
   geom_point(size = 3) + 
   geom_smooth(method="lm",formula = y ~ x + I(x^2), color='grey')
 
 print(SO_Eco)
 print(SO_Dist)
-print(SO_bFFP)
+print(SO_eFFP)
 
 
 ##Averages - if you want it to be a series of boxplots, you'd need to combine all the sitesdata
@@ -233,8 +228,8 @@ fit_tg <- aov(TotGrowth ~ Site, data=totData)
 
   pairwise_tg <- TukeyHSD(fit_tg)
   
-  ##bffp_func <- function(x){-0.001*x^2 + 0.0467*x}
-  #curve(bffp_func, 0, 180)
+  ##eFFP_func <- function(x){-0.001*x^2 + 0.0467*x}
+  #curve(eFFP_func, 0, 180)
   
   
 #Mortality
@@ -325,7 +320,7 @@ SO_est <- plot_model(SO_reg, colors = "bw", show.values = TRUE, value.offset =0.
 
 grid.arrange(PH_est, PV_est, SF_est, SO_est, nrow = 2)
 
-colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval")
+colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval", "Corr_Pval")
 num_rws <- 3 +9 + 17 + 6
 storage_mat <- as.data.frame(matrix(0, nrow=num_rws, ncol=length(colnms)))
 names(storage_mat) <- colnms
@@ -361,8 +356,15 @@ storage_mat$Estimate[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 1]
 storage_mat$Stdev[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 2]
 storage_mat$Pval[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 5]
 
-write.csv(storage_mat, "040621growth_estimates.csv")
+##bonferroni corrections
+storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
+
+write.csv(storage_mat, "../05ProcessedDataOutputs/Growth_estimates.csv")
+
+
 ```
+
+
 
 ##Growth Rates - split years
 
@@ -391,13 +393,13 @@ PV_reg <- lme(TotGrowth ~ Ecoregion, random = ~1|Block, data = PV, na.action = n
 
 PV_est <- plot_model(PV_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
 
-##SF - Ecoregion + Dist + ElevDist + bFFP
+##SF - Ecoregion + Dist + ElevDist + eFFP
 SF <- GrowthRates[[3]]
 SF$Ecoregion <- relevel(as.factor(SF$Ecoregion), ref="WIVA")
 SF$ElevDist2 <- (SF$ElevDist)^2
-SF$bFFP2 <- (SF$bFFP)^2
+SF$eFFP2 <- (SF$eFFP)^2
 
-SF_reg <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + bFFP + bFFP2, random = ~1|Block, data = SF, na.action = na.omit, control = ctrl, method="ML")
+SF_reg <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + eFFP + eFFP2, random = ~1|Block, data = SF, na.action = na.omit, control = ctrl, method="ML")
 
 SF_est <- plot_model(SF_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
 
@@ -428,14 +430,14 @@ PH_reg2 <- lme(TotGrowth ~ MSP + MSP2, random = ~1|Block, data = PH, na.action =
 
 PH_est2 <- plot_model(PH_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
 
-#PV - Ecoregion + Dist + ElevDist + bFFP
+#PV - Ecoregion + Dist + ElevDist + eFFP
 PV <- GrowthRates[[2]]
 PV$Ecoregion <- relevel(as.factor(PV$Ecoregion), ref="PULO")
 
 PV$ElevDist2 <- (PV$ElevDist)^2
-PV$bFFP2 <- (PV$bFFP)^2
+PV$eFFP2 <- (PV$eFFP)^2
 
-PV_reg2 <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + bFFP + bFFP2, random = ~1|Block, data = PV, na.action = na.omit, control = ctrl, method="ML")
+PV_reg2 <- lme(TotGrowth ~ Ecoregion + Dist + ElevDist + ElevDist2 + eFFP + eFFP2, random = ~1|Block, data = PV, na.action = na.omit, control = ctrl, method="ML")
 
 PV_est2 <- plot_model(PV_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
 
@@ -449,13 +451,13 @@ SF_reg2 <- lme(TotGrowth ~ Ecoregion + Dist + Aspect + Aspect2, random = ~1|Bloc
 
 SF_est2 <- plot_model(SF_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
 
-#SO - Ecoregion + bFFP
+#SO - Ecoregion + eFFP
 SO <- GrowthRates[[2]]
 
-SO$bFFP2 <- (SO$bFFP)^2
+SO$eFFP2 <- (SO$eFFP)^2
 SO$Ecoregion <- relevel(as.factor(SO$Ecoregion), ref="KLMT")
 
-SO_reg2 <- lme(TotGrowth ~ Ecoregion + bFFP + bFFP2, random = ~1|Block, data = SO, na.action = na.omit, control = ctrl, method="ML")
+SO_reg2 <- lme(TotGrowth ~ Ecoregion + eFFP + eFFP2, random = ~1|Block, data = SO, na.action = na.omit, control = ctrl, method="ML")
 
 SO_est2 <- plot_model(SO_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "D", digits = 3) + theme_sjplot()
 
@@ -469,7 +471,8 @@ fig2 <- grid.arrange(PH_est2, PV_est2, SF_est2, SO_est2, nrow = 2)
 
 ```{r}
 sites <- c("PH","PV", "SF", "SO")
-condata <- IndivCond_final(sitesdata, sites) ##need to fix this function (is not in PerSiteAnalys2)
+condata <- IndivCond_final(sitesdata, sites) 
+
 # totMData <- rbindlist(condata)
 # 
 # Overall_Mort <- ggplot(totMData, aes(x=Site, y=(PercDead)*100)) + 
@@ -485,7 +488,7 @@ condata <- IndivCond_final(sitesdata, sites) ##need to fix this function (is not
 # 
 # print(sig05_pair_pmt)
 #   
-###IF YOU WANT IT TO MATCH UP YOU NEED TO DO RESCALING
+
 
 
 ##PH - Ecoregion, ElevDist
@@ -543,7 +546,7 @@ grid.arrange(PH_odds, PV_odds, SF_odds, SO_odds, nrow = 2)
 #fixef(SO_reg)
 #summary(SO_reg)$coef
 
-colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval")
+colnms <- c("Site", "Dep_Var", "Indep_Var", "Estimate", "Stdev", "Pval", "Corr_Pval")
 num_rws <- 7 +11 + 10 + 3
 storage_mat <- as.data.frame(matrix(0, nrow=num_rws, ncol=length(colnms)))
 names(storage_mat) <- colnms
@@ -579,7 +582,10 @@ storage_mat$Estimate[SO_rws] <- summary(SO_reg)$coef[c(2:4), 1]
 storage_mat$Stdev[SO_rws] <- summary(SO_reg)$coef[c(2:4), 2]
 storage_mat$Pval[SO_rws] <- summary(SO_reg)$coef[c(2:4), 4]
 
-write.csv(storage_mat, "040621mortality_estimates.csv")
+storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
+
+
+write.csv(storage_mat, "../05ProcessedDataOutputs/mortality_estimates.csv")
 
 ```
 
@@ -592,11 +598,11 @@ years <- c(12, 13)
 #just to recreate the datasets
 condata <- IndivCond_final(sitesdata, sites)
 
-##PH - Ecoregion + ElevDist + bFFP
+##PH - Ecoregion + ElevDist + eFFP
 PH_mort <- condata[[1]]
 PH_mort$Ecoregion <- relevel(as.factor(PH_mort$Ecoregion), ref="PULO")
 
-PH_reg <- glmer(PercDead ~ Ecoregion + ElevDist + bFFP + (1|Block), data = PH_mort, 
+PH_reg <- glmer(PercDead ~ Ecoregion + ElevDist + eFFP + (1|Block), data = PH_mort, 
                 family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
                 weights = Total)
 
@@ -612,11 +618,11 @@ PV_reg <- glmer(PercDead ~ Ecoregion + ElevDist + (1|Block), data = PV_mort,
 
 PV_odds <- plot_model(PV_reg, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "B", digits = 3) + theme_sjplot()
 
-##SF - Ecoregion + Dist + Aspect + bFFP
+##SF - Ecoregion + Dist + Aspect + eFFP
 SF_mort <- condata[[3]]
 SF_mort$Ecoregion <- relevel(as.factor(SF_mort$Ecoregion), ref="WIVA")
 
-SF_reg <- glmer(PercDead ~ Ecoregion + Dist + Aspect + bFFP + (1|Block), data = SF_mort, 
+SF_reg <- glmer(PercDead ~ Ecoregion + Dist + Aspect + eFFP + (1|Block), data = SF_mort, 
                 family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
                 weights = Total)
 
@@ -650,11 +656,11 @@ PH_reg2 <- glmer(PercDead ~ Ecoregion + ElevDist+ (1|Block), data = PH_mort,
 
 PH_odds2 <- plot_model(PH_reg2, colors = "gs", show.values = TRUE, value.offset =0.4, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
 
-##PV - Ecoregion + Dist + Slope + Aspect + bFFP
+##PV - Ecoregion + Dist + Slope + Aspect + eFFP
 PV_mort <- condata[[2]]
 PV_mort$Ecoregion <- relevel(as.factor(PV_mort$Ecoregion), ref="PULO")
 
-PV_reg2 <- glmer(PercDead ~ Ecoregion + Dist + Slope + Aspect + bFFP + (1|Block), data = PV_mort, 
+PV_reg2 <- glmer(PercDead ~ Ecoregion + Dist + Slope + Aspect + eFFP + (1|Block), data = PV_mort, 
                 family="binomial", control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)), 
                 weights = Total)
 
@@ -690,7 +696,7 @@ grid.arrange(PH_odds2, PV_odds2, SF_odds2, SO_odds2, nrow = 2)
 
 
 ```{r}
-PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
+PhenData <- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
 
 ctrl <- lmeControl(opt='optim')
 
@@ -711,7 +717,7 @@ ctrl <- lmeControl(opt='optim')
 #   geom_point(size = 3) + 
 #   geom_smooth(method="lm", color='grey')
 # 
-# Phen_bFFP <- ggplot(PhenData, aes(x=bFFP, y=Bud.Elongating)) + 
+# Phen_eFFP <- ggplot(PhenData, aes(x=eFFP, y=Bud.Elongating)) + 
 #   geom_point(size = 3) + 
 #   geom_smooth(method="lm", color='grey')
 # 
@@ -731,13 +737,13 @@ ctrl <- lmeControl(opt='optim')
 # print(Phen_Lat)
 # print(Phen_Long)
 # print(Phen_Elev)
-# print(Phen_bFFP)
+# print(Phen_eFFP)
 # print(Phen_MSP)
 # print(Phen_Slope)
 # print(Phen_Aspect)
 
 ##BSW
-#BSW_reg <- lme(Bud.Swollen ~ Ecoregion + Lat + Long + bFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit, control = ctrl, method="ML")
+#BSW_reg <- lme(Bud.Swollen ~ Ecoregion + Lat + Long + eFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit, control = ctrl, method="ML")
 
 #BSW_est <- plot_model(BSW_reg, colors = "gs", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", title = "A", digits = 3) + theme_sjplot()
 
@@ -749,7 +755,7 @@ BEL_reg <- lme(Bud.Elongating ~ Ecoregion + Long + Elev + eFFP + MSP + Slope + A
 BEL_est <- plot_model(BEL_reg, colors = "bw", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", digits = 3, title = "") + theme_sjplot()
 
 ##LEM
-#LEM_reg <- lme(Leaves.emerging ~ Ecoregion + Lat + Long + Elev + bFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit)
+#LEM_reg <- lme(Leaves.emerging ~ Ecoregion + Lat + Long + Elev + eFFP + MSP + Slope + Aspect, random = ~1|Block, data = PhenData, na.action = na.omit)
 
 #LEM_est <- plot_model(LEM_reg, colors = "gs", show.values = TRUE, value.offset =0.5, vline.color = "#E4E3E3", title = "C", digits = 3) + theme_sjplot()
 
@@ -763,8 +769,7 @@ try to get source-level averages of OGR, DBK, and PMT
 ```{r}
 #totData
 #totMData
-colnms <- c("Ecoregion", "Source", "PH_OGR","PV_OGR","SF_OGR", "SO_OGR", "PH_DBK", "PV_DBK",
-            "SF_DBK", "SO_DBK", "PH_PMT", "PV_PMT", "SF_PMT", "SO_PMT")
+colnms <- c("Ecoregion", "Source", "PH_OGR","PV_OGR","SF_OGR", "SO_OGR", "PH_DBK", "PV_DBK", "SF_DBK", "SO_DBK", "PH_PMT", "PV_PMT", "SF_PMT", "SO_PMT")
 outputmat <- as.data.frame(matrix(0, nrow = length(unique(totData$Source)), ncol = length(colnms)))
 names(outputmat) <- colnms
 mat_ind <- 0
@@ -839,7 +844,7 @@ for (src in unique(totData$Source)){ #for each source
 
 }
 
-write.csv(outputmat, "0701SourceAverages.csv")
+write.csv(outputmat, "../05ProcessedDataOutputs/SourceAverages.csv")
 #output is a table with 4 x 3 = 12 columns (24 if you have standard deviationz) and 52 (?) rows
 
 ```
@@ -872,7 +877,7 @@ for (st in sites){ #site loop
   
   ##Is it worth having the above in a CSV and save yourself some pain? 
   
-  write.csv(sig05_pair, print(paste("GRByFamilyTotGrowth_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyTotGrowth_", st, ".csv", sep="")))
   
   ##NumDieback
   fit_dbk <- aov(AmntDieback ~ Source, data=st_dat)
@@ -885,7 +890,7 @@ for (st in sites){ #site loop
   
   print(paste("Percent of total pairwise Dieback sig at 0.05 is:", num_sig05_pair/tot_num_pair))
   
-  write.csv(sig05_pair, print(paste("GRByFamilyDieback_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyDieback_", st, ".csv", sep="")))
  
   ##Mortality
    ##NumDieback
@@ -899,7 +904,7 @@ for (st in sites){ #site loop
   
   print(paste("Percent of total pairwise Mortality sig at 0.05 is:", num_sig05_pair/tot_num_pair))
   
-  write.csv(sig05_pair, print(paste("GRByFamilyMort_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyMort_", st, ".csv", sep="")))
 }
 
 ```
@@ -946,9 +951,9 @@ restart here but do an ANOVA or something!
 #kmeans clustering
 #scale functions
 #silhouette method 
-fullClim <- read.csv("../02Lvl1Processed/WeatherData.csv")
-locData <- read.csv("../02Lvl1Processed/033121LocClim.csv")
-ecoregdat <- read.csv("../02Lvl1Processed/EcoregionData.csv")
+fullClim <- read.csv("../01ExampleRawData/02LocationData/WeatherData.csv")
+locData <- read.csv("../01ExampleRawData/02LocationData/LocClim.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 st_rows <- c(77,78,95, 92)
 st_ind <- c(77, 77, 94, 91) #where the site should be in the cluster output file
 
@@ -961,13 +966,29 @@ names(output_mat) <- c("InGR", "InGR_SE", "OGR", "OGR_SE", "InDBK", "InDBK_SE", 
 merData <- merge(locData, fullClim, by="Family")
 merData <- merge(merData, ecoregdat, by="Family")
 merData <- merData[,c(1, 6:8, 13, 21:39, 41:59, 64:99, 269)]
+
+##EcoMap
+EcoNums <- c(1,2,3,4,5,6,7)
+names(EcoNums) <- c("PULO", "WIVA", "CORA", "KLMT", "CSCD", "SRNA", "CSCO")
+merData$Eco <- EcoNums[merData$EcoregionShort]
+##Should make sure the numbers are in some kind of reasonable order
 merData$Eco <- as.numeric(as.factor(merData$EcoregionShort)) 
 
 cs <- c(9,9,7,9)
 
 st_eco <- c("PULO", "PULO", "WIVA", "KLMT")
+sites <- names(GrowthRates)
+
+##storing the p-values for bonferroni correction
+pdf_cols <- c("o_pval", "a_pval", "site", "DepVar")
+p_val_df <- as.data.frame(matrix(0, nrow=12, ncol=length(pdf_cols)))
+names(p_val_df) <- pdf_cols
+pdf_iter <- 0
 
 for (s in 1:4){ #sites
+  
+  #for storing p-values
+  pdf_iter <- pdf_iter + 1
   
   site <- st_rows[s] #cg sites
   locs <- merData[-c(st_rows[-s]),] #get rid of other cg
@@ -1032,7 +1053,15 @@ for (s in 1:4){ #sites
   gr_df$NumLoc[1] <- length(fams_CgClust)
   gr_df$NumDist[1] <- length(fams_OClust)
   
+  
   gr_df$AIC[1] <- summary(aov(GR ~ Group, data = gr_df))[[1]][["Pr(>F)"]][1]
+  #store for correction later
+  p_val_df$o_pval[pdf_iter] <- gr_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Growth"
+  
+  pdf_iter <- pdf_iter + 1
+  
   
   boxplot(GR~Group,data=gr_df, main=print(paste("Growth at", sites[s])),
    xlab="Groups", ylab="Growth (cm)")
@@ -1064,6 +1093,12 @@ for (s in 1:4){ #sites
   
   dbk_df$AIC[1] <- summary(aov(DBK ~ Group, data = dbk_df))[[1]][["Pr(>F)"]][1]
   
+  #store p-values for correction
+  p_val_df$o_pval[pdf_iter] <- dbk_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Dieback"
+  
+  pdf_iter <- pdf_iter + 1
   
   ##Mortality
   cg_cl_mort <- na.omit(site_Mort$PercDead[site_Mort$Family %in% fams_CgClust])
@@ -1091,6 +1126,11 @@ for (s in 1:4){ #sites
   mort_df$NumDist[1] <- length(fams_OClust)
   
   mort_df$AIC[1] <- summary(aov(Mort ~ Group, data = mort_df))[[1]][["Pr(>F)"]][1]
+  
+  #store p-values for correction
+  p_val_df$o_pval[pdf_iter] <- mort_df$AIC[1]
+  p_val_df$site[pdf_iter]  <- sites[s]
+  p_val_df$DepVar[pdf_iter]  <- "Mortality"
   
   ###
   print(paste("For site", sites[s]))
@@ -1120,10 +1160,12 @@ for (s in 1:4){ #sites
   #                    cg_cl_dbk, cg_cl_dbk_se, o_cl_dbk, o_cl_dbk_se, 
   #                    cg_cl_mort, cg_cl_mort_se, o_cl_mort, o_cl_mort_se)
   
-  write.csv(gr_df, print(paste("../02Lvl1Processed/060721GrowthClust_",sites[s], ".csv", sep="")))
-  write.csv(dbk_df, print(paste("../02Lvl1Processed/060721DBKClust_",sites[s], ".csv", sep="")))
-  write.csv(mort_df, print(paste("../02Lvl1Processed/060721MortClust_",sites[s], ".csv", sep="")))
+  write.csv(gr_df, print(paste("../05ProcessedDataOutputs/GrowthClust_",sites[s], ".csv", sep="")))
+  write.csv(dbk_df, print(paste("../05ProcessedDataOutputs/DBKClust_",sites[s], ".csv", sep="")))
+  write.csv(mort_df, print(paste("../05ProcessedDataOutputs/MortClust_",sites[s], ".csv", sep="")))
 }
+
+write.csv(p_val_df, "../05ProcessedDataOutputs/LocalDistant_pvals.csv")
 ```
 
 ##Turn it into a figure
@@ -1214,21 +1256,21 @@ for (s in 1:4){ #sites
 p_gr <- ggplot(gr_allyrs, aes(x=Group, y=TotGrowth, fill=Site)) + 
   geom_boxplot() + 
   scale_x_discrete(limits=c("Local", "Distant")) + 
-  scale_fill_brewer(palette="YlGnBu") +
+  scale_fill_brewer(palette="Greys") +
   xlab("") + ylab("Total Growth (cm)") + ggtitle("A")   
   #stat_compare_means(method = "anova", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
 
 p_dbk <- ggplot(gr_allyrs, aes(x=Group, y=AmntDieback, fill=Site)) + 
   geom_boxplot() + 
   scale_x_discrete(limits=c("Local", "Distant"))+ 
-  scale_fill_brewer(palette="YlGnBu") +
+  scale_fill_brewer(palette="Greys") +
   xlab("") + ylab("Dieback (cm)") + ggtitle("B")  
   #stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(300, 325, 350, 375, 400, 425))
 
 p_mort <- ggplot(con_allyrs, aes(x=Group, y=PercDead, fill=Site)) + 
   geom_boxplot() + 
   scale_x_discrete(limits=c("Local", "Distant")) + 
-  scale_fill_brewer(palette="YlGnBu") +
+  scale_fill_brewer(palette="Greys") +
   xlab("") + ylab("Percent Mortality") + ggtitle("B") 
   #stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label = "p.signif", label.y = c(100, 110, 120, 130, 140, 150))
 
@@ -1238,6 +1280,19 @@ print(p_mort)
 
 grid.arrange(p_gr, p_mort, nrow = 2)
 
+```
+
+
+##Correction for multiple comparisons
+
+```{r bonferroni}
+##reading in the csv you created before
+p_val_df <- read.csv("../05ProcessedDataOutputs/LocalDistant_pvals.csv")
+
+adjusted <- p.adjust(p_val_df$o_pval, method = "bonferroni", n = length(p_val_df$o_pval))
+p_val_df$a_pval <- adjusted
+
+write.csv(p_val_df, "../05ProcessedDataOutputs/LocalDistant_MultComp_pvals.csv")
 ```
 
 
@@ -1282,9 +1337,6 @@ for (s in 1:4){ #sites
 ##Phenology + Other Variables
 
 ```{r phen + others}
-#condata <- IndivCond_final(sitesdata, sites)
-#GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
-#PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
 
 ctrl <- lmeControl(opt='optim')
 
@@ -1421,7 +1473,7 @@ sto_mat$Lower[SO_rws] <- SO_ints[c(2:7),1]
 sto_mat$Estimates[SO_rws] <- SO_ints[c(2:7),2]
 sto_mat$Upper[SO_rws] <- SO_ints[c(2:7), 3]
 
-write.csv(sto_mat,"040621Dieback_intervals.csv")
+write.csv(sto_mat,"../05ProcessedDataOutputs/Dieback_intervals.csv")
 
 ```
 

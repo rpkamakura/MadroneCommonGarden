@@ -1,5 +1,5 @@
 ---
-title: "032921ChooseEnvVarsMadrone"
+title: "Looking at Environmental Variables"
 author: "Renata Poulton Kamakura"
 date: "March 29, 2021"
 output: html_document
@@ -121,7 +121,7 @@ Tmax_at
 CMD_at
 Eref_at
 eFFP.y
-DD.5_sp
+DD.5.sp
 DD.18_at.1
 Tave_sp
 DD.18_sp
@@ -147,7 +147,7 @@ promising R2 values above
 #locandclim
 
 #all the variables of interest
-varlist <- c("Latitude", "Longitude", "Slope", "Aspect", "Elevation", "DD.5_wt", "Tmax_wt", "Eref_wt", "MCMT", "DD.5_at", "Tave_wt", "DD.18_wt", "Tave_at", "DD.18_at", "DD.18", "DD.5", "MAT", "SHM", "Tmax_at", "CMD_at", "Eref_at", "eFFP.y", "DD.5_sp", "DD.18_at.1", "Tave_sp", "DD.18_sp", "Tmin_at", "Tmin_wt", "PPT_sm", "CMD", "CMD_sp", "EMT", "Eref_sp", "MSP.y", "bFFP.x")
+varlist <- c("Latitude", "Longitude", "Slope", "Aspect", "Elevation", "DD.5.wt", "Tmax.wt", "Eref.wt", "MCMT", "DD.5.at", "Tave.wt", "DD.18.wt", "Tave.at", "DD.18.at", "DD.18", "DD.5", "MAT", "SHM", "Tmax.at", "CMD.at", "Eref.at", "eFFP.y", "DD.5.sp", "DD.18.at.1", "Tave.sp", "DD.18.sp", "Tmin.at", "Tmin.wt", "PPT.sm", "CMD", "CMD.sp", "EMT", "Eref.sp", "MSP.y", "bFFP.x")
 
 ##pairwise linear regressions
 AllClim <- merge(locandclim, fullClim, by="Family")
@@ -204,20 +204,20 @@ for (s in 1:4){
   
   grdbk <- merge(GrowthRates[[s]], fullClim, by="Family")
   
-  r2_DD18 <- summary(lm(DD.18_at ~ Dist, data=grdbk))$r.squared
-  r2_DD5 <- summary(lm(DD.5_sp.y ~ Dist, data=grdbk))$r.squared
+  r2_DD18 <- summary(lm(DD.18.at ~ Dist, data=grdbk))$r.squared
+  r2_DD5 <- summary(lm(DD.5.sp.y ~ Dist, data=grdbk))$r.squared
   
   print(paste("At Site", s, "R2 for DD.18_at is:", r2_DD18 ))
-  print(paste("At Site", s, "R2 for DD.5_sp is:", r2_DD5 ))
+  print(paste("At Site", s, "R2 for DD.5.sp is:", r2_DD5 ))
 }
 
 ```
 
-##Add extra variable to DD.5_sp
+##Add extra variable to DD.5.sp
 
 ```{r adjust vars}
 ##pairwise linear regressions
-f_clim <- fullClim[, c("Family", "DD.5_sp")]
+f_clim <- fullClim[, c("Family", "DD.5.sp")]
 ClimWNew <- merge(locandclim, f_clim, by="Family")
 
 write.csv(ClimWNew, "../01ExampleRawData/02LocationData/LocClim.csv")

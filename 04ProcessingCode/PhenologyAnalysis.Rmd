@@ -15,10 +15,9 @@ library(nlme)
 library(gnm)
 library(MuMIn)
 #library(car)
-source("032521PerSiteAnalys.R")
-source("032521RegressionFuncs.R")
 
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/RegressionFuncs.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -26,7 +25,7 @@ options(stringsAsFactors = FALSE)
 years <- c(12, 13, 14, 15)
 
 #Ecoregion data
-ecoregdat <- read.csv("EcoregionData.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 ecoregions <- unique(ecoregdat$EcoregionShort)
 
 #Sources

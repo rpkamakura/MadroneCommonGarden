@@ -1,5 +1,5 @@
 ---
-title: "MultipleRegInDepth"
+title: "Diving Into Specific Regressions"
 author: "RPK"
 date: "April 23, 2019"
 output: html_document
@@ -16,11 +16,8 @@ library(gnm)
 library(MuMIn)
 library(sjPlot)
 
-
-source("032521PerSiteAnalys.R")
-source("032521RegressionFuncs.R")
-
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/RegressionFuncs.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -29,59 +26,60 @@ paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP"
 functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
 func_num <- 1:length(paramlist)
 
-years <- c(12, 13) #for subset analysis
-#years <- c(12, 13, 14, 15)
+#years <- c(12, 13) #for subset analysis
+years <- c(12, 13, 14, 15)
 sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
 
-pertfiles <- list("033121PVFulldata.csv", "033121PHFulldata.csv", "033121SFFulldata.csv", "033121SOFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles, read.csv)
 names(sitesdata) <- sites
 
-#setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Data Analysis") #easier directory to work from
-#regdata <- lapply(list("033121_TotGrowth_BestMultReg.csv","040121_AmntDieback_BestMultReg.csv", "033121MortalityBestMultReg.csv"), read.csv)
+regdata <- lapply(list("../05ProcessedDataOutputs/TotGrowth_BestMultReg.csv", "../05ProcessedDataOutputs/MortalityBestMultReg.csv"), read.csv)
 
-regdata <- lapply(list("../Data Analysis/040121_TotGrowth_BestMultReg12to13.csv","../Data Analysis/040121_AmntDieback_BestMultReg12to13.csv", "../Data Analysis/033121MortalityBestMultReg12to13.csv"), read.csv)
+##NOTE, I DO NOT HAVE DIEBACK IN HERE BECAUSE WITH THE SIMULATED DATA, 
+##DIEBACK DOESN'T WORK
 
-#regdata <- lapply(list("../Data Analysis/040121_TotGrowth_BestMultReg12to13.csv","../Data Analysis/040121_AmntDieback_BestMultReg12to13.csv", "../Data Analysis/040121MortalityBestMultReg12to13.csv"), read.csv)
+#####For subset analysis
+#regdata <- lapply(list("../05ProcessedDataOutputs/TotGrowth_BestMultReg12to13.csv","../05ProcessedDataOutputs/AmntDieback_BestMultReg12to13.csv", "../05ProcessedDataOutputs/MortalityBestMultReg12to13.csv"), read.csv)
 
 ```
 
 
-May not be able to use glm, might have to do some form of binomial? check out p. 28 at https://education.illinois.edu/docs/default-source/carolyn-anderson/edpsy589/lectures/Draft_glm_chapter_feb_2010.pdf
-
-https://stats.idre.ucla.edu/r/dae/binomial-regression/
-
-https://newonlinecourses.science.psu.edu/stat504/node/169/
-
 ```{r}
-iter <- 0 
-d_vars <- c("TotGrowth", "AmntDieback") #got rid of mortality because it needs to be done differently
+#iter <- 0 
+#keep this part in case you want to pull in dieback
+#d_vars <- c("TotGrowth", "AmntDieback") #got rid of mortality because it needs to be done differently
+
 fams <- c("linear", "zeroinfl")
 
-for (DepVar in regdata) {#For each response variable 
-  iter <- iter + 1
-  f <- fams[iter]
+#keep this part in case you want to pull in dieback
+#for (DepVar in regdata) {#For each response variable
+  DepVar <- regdata[[1]]
+  #iter <- iter + 1
+  f <- fams[1]
   
   #which dependent variable you have 
-  if (iter == 1| iter ==2){
-    #fulldata <-  IndivHeights_byTree(sitesdata, years, sites) #Growth Rate Data
+  #if (iter == 1){
+
+    #Get growth and dieback data
     fulldata <-  PercGrowth_byTree(sitesdata, years, sites) #Growth Rate Data
-    dvarnm <- d_vars[iter]
-    DepVarInd <- match(dvarnm, colnames(fulldata[[1]]))
+    #dvarnm <- d_vars[iter]
+    dvarnm <- "TotGrowth"
+    DepVarInd <- match("TotGrowth", colnames(fulldata[[1]]))
     
     wts = FALSE
 
-  } else if (iter == 3){
-    
-    next
-    
-    fulldata <- IndivCond_final(sitesdata, sites) #Mortality Data
-    dvarnm <- d_vars[iter]
-    DepVarInd <- match(dvarnm, colnames(fulldata[[1]]))
-    
-    wts = FALSE
-    
-  }
+  # } else if (iter == 2){
+  #   
+  #   next
+  #   
+  #   fulldata <- IndivCond_final(sitesdata, sites) #Mortality Data
+  #   dvarnm <- d_vars[iter]
+  #   DepVarInd <- match(dvarnm, colnames(fulldata[[1]]))
+  #   
+  #   wts = FALSE
+  #   
+  # }
   
   st_ind <- 0 #so you know which site you're on (index-wise)
 
@@ -125,21 +123,24 @@ for (DepVar in regdata) {#For each response variable
           TotNumIndep <- TotNumIndep + 6 #for all the ecoregions
           TotIndepNm <- append(TotIndepNm, c("CSCD", "CSCO", "KLMT", "PULO", "SRNA", "WIVA"))
           reg_nms <- append(reg_nms, rep(pert_regs[reg, 3], 6))
+          
         } else if (typ == "L"){
-          TotNumIndep <- TotNumIndep + 1
+          TotNumIndep <- TotNumIndep + 1 #just one linear coefficient
           TotIndepNm <- append(TotIndepNm, indep_vars[typ_ind])
           reg_nms <- append(reg_nms, pert_regs[reg, 3])
           
         } else if (typ == "Q"){
-          TotNumIndep <- TotNumIndep + 2
+          TotNumIndep <- TotNumIndep + 2 #because have linear and quadratic term
           TotIndepNm <- append(TotIndepNm, c(indep_vars[typ_ind],
                                              paste(indep_vars[typ_ind], "2", sep="")))
           reg_nms <- append(reg_nms, rep(pert_regs[reg, 3], 2))
+          
         }
       }
       
        RandVar <- match("Block", colnames(st_dat)) #random variable
         
+      #run regression 
       reg_results <- MultReg2(st_dat, indep_ind, DepVarInd, types, RandVar, family = f)
         
       reg_df <- reg_results[[1]] #the dataframe
@@ -147,20 +148,20 @@ for (DepVar in regdata) {#For each response variable
       
       reg_sum <- summary(reg_obj)
       
-      if (iter == 2){
-        
-        aic_vals <- append(aic_vals, reg_sum$AIC)
-        
-        num_pert_rws <- length(reg_int$fixed[,1]) 
-        num_indep <- length(indep_vars) + 1 #last index for independent variables to pay attention to 
-        upper_int <- append(upper_int, as.vector(reg_int$fixed[2:num_pert_rws,3]))
-        lower_int <- append(lower_int, as.vector(reg_int$fixed[2:num_pert_rws,1]))
-        est_param <- append(est_param, as.vector(reg_int$fixed[2:num_pert_rws,2]))
-        p_vals <- append(p_vals, as.vector(reg_sum$tTable[2:num_pert_rws,5]))
-        
-        print(paste("The number of parameter estimates for", reg, "is", length(as.vector(reg_int$fixed[2:num_pert_rws,2]))))
-        
-      } else if (iter == 1){
+      # if (iter == 2){
+      #   
+      #   aic_vals <- append(aic_vals, reg_sum$AIC)
+      #   
+      #   num_pert_rws <- length(reg_int$fixed[,1]) 
+      #   num_indep <- length(indep_vars) + 1 #last index for independent variables to pay attention to 
+      #   upper_int <- append(upper_int, as.vector(reg_int$fixed[2:num_pert_rws,3]))
+      #   lower_int <- append(lower_int, as.vector(reg_int$fixed[2:num_pert_rws,1]))
+      #   est_param <- append(est_param, as.vector(reg_int$fixed[2:num_pert_rws,2]))
+      #   p_vals <- append(p_vals, as.vector(reg_sum$tTable[2:num_pert_rws,5]))
+      #   
+      #   print(paste("The number of parameter estimates for", reg, "is", length(as.vector(reg_int$fixed[2:num_pert_rws,2]))))
+      #   
+      # } else if (iter == 1){
         
         reg_r2 <- r.squaredGLMM(reg_obj) 
         reg_int <- intervals(reg_obj, which = "fixed")
@@ -189,7 +190,7 @@ for (DepVar in regdata) {#For each response variable
         het_plot <- plot(reg_obj)
         print(het_plot)
         
-      }
+      #}
       
       
       
@@ -203,15 +204,15 @@ for (DepVar in regdata) {#For each response variable
       #Parameter Matrix
       nrowsParam <- TotNumIndep
       
-      if (iter == 2){
-          r2m_vals <- rep(NA, nrowsOverall)
-          r2c_vals <- rep(NA, nrowsOverall)
-          est_param <- rep(NA, nrowsParam)
-          upper_int <- rep(NA, nrowsParam)
-          lower_int <- rep(NA, nrowsParam)
-          est_param <- rep(NA, nrowsParam)
-          p_vals <- rep(NA, nrowsParam)
-      }
+      # if (iter == 2){
+      #     r2m_vals <- rep(NA, nrowsOverall)
+      #     r2c_vals <- rep(NA, nrowsOverall)
+      #     est_param <- rep(NA, nrowsParam)
+      #     upper_int <- rep(NA, nrowsParam)
+      #     lower_int <- rep(NA, nrowsParam)
+      #     est_param <- rep(NA, nrowsParam)
+      #     p_vals <- rep(NA, nrowsParam)
+      # }
       
       o_cols <- c("Site", "Dep", "Indep", "Rand", "AIC", "R2m", "R2c")
       overal_mod <- matrix(NA, nrow = nrowsOverall, ncol = length(o_cols))
@@ -245,15 +246,15 @@ for (DepVar in regdata) {#For each response variable
       
       
       
-      if (iter == 2){
-          r2m_vals <- rep(NA, nrows_nw)
-          r2c_vals <- rep(NA, nrows_nw)
-          est_param <- rep(NA, TotNumIndep)
-          upper_int <- rep(NA, TotNumIndep)
-          lower_int <- rep(NA, TotNumIndep)
-          est_param <- rep(NA, TotNumIndep)
-          p_vals <- rep(NA, TotNumIndep)
-      }
+      # if (iter == 2){
+      #     r2m_vals <- rep(NA, nrows_nw)
+      #     r2c_vals <- rep(NA, nrows_nw)
+      #     est_param <- rep(NA, TotNumIndep)
+      #     upper_int <- rep(NA, TotNumIndep)
+      #     lower_int <- rep(NA, TotNumIndep)
+      #     est_param <- rep(NA, TotNumIndep)
+      #     p_vals <- rep(NA, TotNumIndep)
+      # }
       
       #Rather convoluted way to add the matrices together
       
@@ -298,26 +299,27 @@ for (DepVar in regdata) {#For each response variable
   
   ##Write data to CSV
   if (dvarnm == "TotGrowth"){ #check what the random variables are (what the dep var is)
-    write.csv(overal_mod, "040221_TGR_BestModelResults12to13.csv")
-    write.csv(param_mat, "040221_TGR_BestParamResults12to13.csv")
-  } else if (dvarnm == "AmntDieback"){
-    write.csv(overal_mod, "040221_ADBK_BestModelResults12to13.csv")
-    write.csv(param_mat, "040221_ADBK_BestParamResults12to13.csv")
-  } else if (dvarnm == "PercDead"){
-    #write.csv(overal_mod, "0508Mort_BestModelResults12to13.csv")
-    #write.csv(param_mat, "0508Mort_BestParamResults12to13.csv")
+    write.csv(overal_mod, "../05ProcessedDataOutputs/TGR_BestModelResult.csv")
+    write.csv(param_mat, "../05ProcessedDataOutputs/TGR_BestParamResult.csv")
+  #} else if (dvarnm == "AmntDieback"){
+  #  write.csv(overal_mod, "../05ProcessedDataOutputs/ADBK_BestModelResults.csv")
+  #  write.csv(param_mat, "../05ProcessedDataOutputs/ADBK_BestParamResults.csv")
+  #} else if (dvarnm == "PercDead"){
+    #write.csv(overal_mod, "../05ProcessedDataOutputs/Mort_BestModelResults.csv")
+    #write.csv(param_mat, "../05ProcessedDataOutputs/Mort_BestParamResults.csv")
   }
 
-} #dependent variable for loop 
+#} #dependent variable for loop 
 
 
 ``` 
 
 
-#New Mortality
+#Mortality Analyses 
+
 ```{r}
 
-DepVar <- regdata[[3]]
+DepVar <- regdata[[2]]
 fulldata <- IndivCond_final(sitesdata, sites) #Mortality Data
 dvarnm <- "PercDead"
 f = "binomial"
@@ -475,8 +477,8 @@ functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
     
   } #site for loop 
   
-  write.csv(overal_mod, "040121_Mort_BestModelResults12to13.csv")
-  write.csv(param_mat, "040121_Mort_BestParamResults12to13.csv")
+  write.csv(overal_mod, "../05ProcessedDataOutputs/Mort_BestModelResults.csv")
+  write.csv(param_mat, "../05ProcessedDataOutputs/Mort_BestParamResults.csv")
 
 
 ```

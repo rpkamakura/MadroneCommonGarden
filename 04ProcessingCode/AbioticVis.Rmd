@@ -1,5 +1,5 @@
 ---
-title: "AbioticVis"
+title: "Visualize Abiotic Variables"
 author: "RPK"
 date: "August 15, 2019"
 output: html_document
@@ -14,9 +14,8 @@ library(survival)
 library(nlme)
 library(plotly)
 
-source("032521PerSiteAnalys.R")
-
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
+#To pull in functions to calculate mortality and growth and health 
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -24,7 +23,7 @@ options(stringsAsFactors = FALSE)
 years <- c(12, 13, 14, 15)
 
 #Ecoregion data
-ecoregdat <- read.csv("EcoregionData.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 ecoregions <- unique(ecoregdat$EcoregionShort)
 sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
 
@@ -32,12 +31,12 @@ sites <- c("PuyallupHill", "PuyallupValley", "Starker", "Sprague")
 sources <- unique(ecoregdat$Source)
 
 ##Get the full data files
-pertfiles <- list("0503PVFulldata.csv", "0503PHFulldata.csv", "0503SFFulldata.csv", "0503SOFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles,read.csv)
 names(sitesdata) <- sites
 
 
-locandclim <- read.csv("LocandClim_sa.csv")
+locandclim <- read.csv("../01ExampleRawData/02LocationData/LocandClim_sa.csv")
 
 a <- length(locandclim[,1])
 cg_locandclim <- locandclim[c((a-3):a),]
@@ -61,9 +60,11 @@ for (sitedata in GrowthRates){
   dist_plot <- ggplot(sitedata, aes(Dist)) + geom_histogram(binwidth=10) + 
     geom_vline(xintercept=0, color="red") + 
     labs(title = paste("Dist by Family at", sites[iter]), x="Dist")
+  
   ##ElevDist
-  elevdist_plot <- ggplot(sitedata, aes(ElevDist)) + geom_vline(xintercept=0, color="red") + 
-    geom_histogram(binwidth=0.05) + labs(title = paste("ElevDist by Family at", sites[iter]), x="ElevDist")
+  elevdist_plot <- ggplot(sitedata, aes(ElevDist)) + 
+    geom_vline(xintercept=0, color="red") + 
+    geom_histogram(binwidth=10) + labs(title = paste("ElevDist by Family at", sites[iter]), x="ElevDist")
 
   
   print(dist_plot)
@@ -83,17 +84,17 @@ for (sitedata in GrowthRates){
 
 latlong <- ggplot(locandclim, aes(y=Latitude, x=Longitude)) + geom_point() +
   geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
-  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Latitude (ºN)")
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (?E)") + ylab("Latitude (?N)")
 
 ##Elevation
 longelev <- ggplot(locandclim, aes(y=Elevation, x=Longitude)) + geom_point() +
   geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
-  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Elevation (m)")
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (?E)") + ylab("Elevation (m)")
 
 #MSP
 longmsp <- ggplot(locandclim, aes(y=MSP, x=Longitude)) + geom_point() +
   geom_point(data=cg_locandclim, shape=17, size = 3, color = "white") + 
-  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Mean Summer Precipitation (mm)")
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "", ""), hjust=-1, color = "red") + xlab("Longitude (?E)") + ylab("Mean Summer Precipitation (mm)")
 
 ##bFFP/eFFP
 
@@ -116,7 +117,10 @@ combloc <- plot_ly(x=locandclim$Longitude, y=locandclim$Latitude, z=locandclim$E
 
 latlongelev <- ggplot(locandclim, aes(y=Latitude, x=Longitude, color=Elevation)) + geom_point() +
   geom_point(data=cg_locandclim, shape=17, size = 3) + 
-  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (ºE)") + ylab("Latitude (ºN)") + scale_colour_gradient(low = "white", high = "black")
+  geom_text(data=cg_locandclim, label=c("SO", "SF", "PY", ""), hjust=-1, color = "red") + xlab("Longitude (?E)") + ylab("Latitude (?N)") + scale_colour_gradient(low = "white", high = "black")
+
+combloc
+latlongelev
 
 
 #Just MSP
@@ -234,10 +238,9 @@ for (st in 1:length(Mortdata)){
 
 ```
 
-##Vis
+##Visualize the averages
 
 ```{r}
-##Now you have gr_mod and mort_mod
 
 #Mortality
 mort_plot <- ggplot(mort_mod, aes(y=PercDead, x=Site)) + geom_boxplot() +
@@ -290,9 +293,9 @@ mean(gr_mod$AmntDieback[gr_mod$Site=="Sprague"])
 
 ```
 
+##Visulaize Correlations between frost-free period metrics
 
 ```{r correlations}
-#locandclim <- read.csv("LocandClim_sa.csv")
 
 ##linear regression
 b_eFFP <- lm(eFFP ~ bFFP, locandclim)

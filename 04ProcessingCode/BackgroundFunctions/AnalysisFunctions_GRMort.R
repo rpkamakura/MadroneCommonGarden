@@ -29,7 +29,7 @@ PercGrowth_byTree <- function(datasets, years, sites, type="full"){
 
     ##Growth Rate
     column_names <- c("Site", "Ecoregion", "Source", "Family", "Block", "Tree", "TotGrowth", "NumDieback", "AmntDieback", "Dist", 
-                      "ElevDist", "Slope", "Aspect", "eFFP", "MSP", "DD.5_sp")
+                      "ElevDist", "Slope", "Aspect", "eFFP", "MSP", "DD.5.sp")
     GrowthRatemat = matrix(NA, nrow = length(unique(sitedata$Family))*length(unique(sitedata$Block))*length(unique(sitedata$Tree)), 
                            ncol = length(column_names))
     colnames(GrowthRatemat) = column_names
@@ -119,7 +119,7 @@ PercGrowth_byTree <- function(datasets, years, sites, type="full"){
           GrowthRatemat[row_ind, 13] = as.numeric(areadat$ElevDist[1])
           GrowthRatemat[row_ind, 14] = as.numeric(areadat$eFFP[1])
           GrowthRatemat[row_ind, 15] = as.numeric(areadat$MSP[1])
-          GrowthRatemat[row_ind, 16] = as.numeric(areadat$DD.5_sp[1])
+          GrowthRatemat[row_ind, 16] = as.numeric(areadat$DD.5.sp[1])
           
           
           
@@ -167,7 +167,7 @@ IndivHeights_byTree <- function(datasets, years, sites){
     
     ##Growth Rate
     column_names <- c("Site", "Ecoregion", "Source", "Family", "Block", "Tree", "TotGrowth", "NumDieback", "AmntDieback", "Dist", 
-                      "ElevDist", "Slope", "Aspect", "DD.5_sp", "eFFP", "MSP")
+                      "ElevDist", "Slope", "Aspect", "DD.5.sp", "eFFP", "MSP")
     GrowthRatemat = matrix(NA, nrow = length(unique(sitedata$Family))*length(unique(sitedata$Block))*length(unique(sitedata$Tree)), 
                            ncol = length(column_names))
     colnames(GrowthRatemat) = column_names
@@ -252,7 +252,7 @@ IndivHeights_byTree <- function(datasets, years, sites){
             GrowthRatemat[row_ind, 11] = areadat$ElevDist[1]
             GrowthRatemat[row_ind, 12] = areadat$Slope[1]
             GrowthRatemat[row_ind, 13] = areadat$Aspect[1]
-            GrowthRatemat[row_ind, 14] = areadat$DD.5_sp[1]
+            GrowthRatemat[row_ind, 14] = areadat$DD.5.sp[1]
             GrowthRatemat[row_ind, 15] = areadat$eFFP[1]
             GrowthRatemat[row_ind, 16] = areadat$MSP[1]
             
@@ -298,7 +298,7 @@ IndivCond <- function(datasets, sites){
       #number of families and years and blocks
     srcecond <- as.data.frame(matrix(0, nrow=numrow, ncol=15)) #before 0 was set to 0.0001
     colnames(srcecond) <- c("Block", "Family", "Source","Year","Dead", "Total", "PercDead", "Ecoregion", "Dist", 
-                            "Slope", "Aspect", "ElevDist", "DD.5_sp", "eFFP", "MSP")
+                            "Slope", "Aspect", "ElevDist", "DD.5.sp", "eFFP", "MSP")
     
                                 
     iter = 0
@@ -352,7 +352,7 @@ IndivCond <- function(datasets, sites){
           srcecond[iter, 12] = famdata$ElevDist[1]
           
           #Climate Variables
-          srcecond[iter, 13] = famdata$DD.5_sp[1]
+          srcecond[iter, 13] = famdata$DD.5.sp[1]
           srcecond[iter, 14] = famdata$eFFP[1]
           srcecond[iter, 15] = famdata$MSP[1]
   
@@ -385,7 +385,7 @@ IndivCond_final <- function(datasets, sites){
     #number of families and years and blocks
     srcecond <- as.data.frame(matrix(0, nrow=numrow, ncol=15)) #before 0 was set to 0.0001
     colnames(srcecond) <- c("Block", "Family", "Source", "Dead", "Total", "PercDead", "Ecoregion", "Dist", 
-                            "Slope", "Aspect", "ElevDist", "eFFP", "DD.5_sp", "MSP", "Site")
+                            "Slope", "Aspect", "ElevDist", "eFFP", "DD.5.sp", "MSP", "Site")
     
     
     iter = 0
@@ -476,7 +476,7 @@ IndivCond_final <- function(datasets, sites){
         
         #Climate Variables
         srcecond[iter, 12] = as.numeric(famdata$eFFP[1])
-        srcecond[iter, 13] = as.numeric(famdata$DD.5_sp[1])
+        srcecond[iter, 13] = as.numeric(famdata$DD.5.sp[1])
         srcecond[iter, 14] = as.numeric(famdata$MSP[1])
         
         

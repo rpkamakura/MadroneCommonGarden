@@ -72,7 +72,7 @@ for (st in sites){
   st_Asp <- locandclim$Aspect[stloc_ind]
   st_Slo <- locandclim$Slope[stloc_ind]
   st_Hardi <-locandclim$Hardiness[stloc_ind]
-  st_DD5 <- ClimData$DD.5_sp[stclim_ind]
+  st_DD5 <- ClimData$DD.5.sp[stclim_ind]
   
   #Go through each file
   for (fl in yrfiles){
@@ -142,7 +142,7 @@ for (st in sites){
     
     columns <- c("Site" ,"Ecoregion", "Source", "Family", "Block", "Tree", "Condition", 
                  "Height", "Leaders", "Distance", "ElevDist", "eFFP", "MSP", "Slope", 
-                 "Aspect", "Hardiness", "DD.5_sp")
+                 "Aspect", "Hardiness", "DD.5.sp")
     
     year_dat <- as.data.frame(matrix(0, ncol = length(columns), nrow = length(yearlocdat$Site)))
     colnames(year_dat) <- columns
@@ -168,7 +168,7 @@ for (st in sites){
     year_dat$eFFP <- clim_vec[[2]] - st_eFFP
     year_dat$MSP <- clim_vec[[3]] - st_MSP
     year_dat$Slope <- clim_vec[[5]] - st_Slo
-    year_dat$DD.5_sp <- clim_vec[[8]] - st_DD5
+    year_dat$DD.5.sp <- clim_vec[[8]] - st_DD5
     
     ##Not distance
     year_dat$Hardiness <- clim_vec[[6]] #could make this a distance by subtracting min val or something

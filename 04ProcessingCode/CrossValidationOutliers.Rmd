@@ -372,69 +372,6 @@ for (DepVar in regdata) { #For each response variable
 
 ```
 
-##Correlations between Independent Variables
-```{r}
-
-#c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP")
-
-# ##For GR, Mort, and DBK
-# for (st in sitesdata){
-#   
-#   param1_list <- c("Distance", "Slope", "Aspect", "ElevDist", "eFFP", "MSP")
-#   param2_list <- param1_list
-#   
-#   for (param1 in param1_list){
-#     p1_ind <- match(param1, names(st))
-#     
-#     rem <- match(param1, param2_list)
-#     param2_list <- param2_list[-rem]
-#     
-#     for (param2 in param2_list){
-#       
-#       p2_ind <- match(param2, names(st))
-#       corr <- cor.test(st[,p1_ind], st[,p2_ind], method="pearson")
-# 
-#       
-#       print(paste("Correlation between ", param1, " and ", param2, " at ",st$Site[1], sep=""))
-#       print(corr)
-#       
-#       c_plot <- plot(st[,p1_ind], st[,p2_ind])
-#       print(c_plot)
-#     }
-#     
-#   }
-#   
-# }
-
-# ##For Phenology
-# param1_list <- c("Lat", "Long", "Slope", "Aspect", "Elev", "eFFP", "MSP")
-# param2_list <- param1_list
-# 
-# for (param1 in param1_list){
-#   p1_ind <- match(param1, names(PhenData))
-#   
-#   rem <- match(param1, param2_list)
-#   param2_list <- param2_list[-rem]
-#   
-#   for (param2 in param2_list){
-#     
-#     p2_ind <- match(param2, names(PhenData))
-#     corr <- cor.test(PhenData[,p1_ind], PhenData[,p2_ind], method="pearson")
-# 
-#     
-#     print(paste("Correlation between ", param1, " and ", param2, " for Phenology ", sep=""))
-#     print(corr)
-#     
-#     c_plot <- plot(PhenData[,p1_ind], PhenData[,p2_ind])
-#     print(c_plot)
-#   }
-#   
-# }
-
-
-
-```
-
 ##Outliers Analysis
 
 ```{r}
@@ -714,18 +651,5 @@ write.csv(outlier_mat, print(paste("outliers_033121_NOTSPLIT.csv", sep="")))
 ```
 
 
-##Just consistently high and low?
 
-How do you decide this though? From the mean? From the median? mean plus minus 1.5*iqr? Just trace individual families and do it more ad hoc?
-
-Maybe just plot the families and go from there? You're going to get the pushback that it's not "objective". Go back to the percentages maybe? Take the top and bottom 10%? 
-
-```{r}
-##Mortality data (MortData)
-
-
-
-##Growth Rate and Dieback Data (GrDbkData)
-
-```
 

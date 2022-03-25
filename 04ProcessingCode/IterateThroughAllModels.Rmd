@@ -1,5 +1,5 @@
 ---
-title: "Analysis Draft 3 Multiple Nonlinear Regression"
+title: "Iterating Through All Models"
 author: "RPK"
 date: "March 25, 2021"
 output: html_document
@@ -17,10 +17,11 @@ library(psychometric)
 library(MASS)
 library(gnm)
 library(MuMIn)
-source("032521PerSiteAnalys.R")
-source("032521RegressionFuncs.R")
 
-setwd("../Basic Datasets") #easier directory to work from
+#pull in the functions we need to get growth/mortality/dieback and for the 
+#regressions 
+source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/RegressionFuncs.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -30,23 +31,17 @@ years <- c(12, 13, 14, 15)
 sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
 
 #Ecoregion data
-ecoregdat <- read.csv("EcoregionData.csv")
+ecoregdat <- read.csv("../01ExampleRawData/02LocationData/EcoregionData.csv")
 ecoregions <- unique(ecoregdat$EcoregionShort)
 
 #Sources
 sources <- unique(ecoregdat$Source)
 
 ##Get the full data files
-pertfiles <- list("033121PVFulldata.csv", "033121PHFulldata.csv", "033121SFFulldata.csv", "033121SOFulldata.csv")
+pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleanedData/PHFulldata.csv", "../03ExampleCleanedData/SFFulldata.csv", "../03ExampleCleanedData/SOFulldata.csv")
 sitesdata <- lapply(pertfiles,read.csv)
 names(sitesdata) <- sites
 ```
-
-The most thorough way to do this is to iterate through every possible combination of variables, look at the AIC values, and pick the ones that are within 2 of the best one
-- to start out, maybe just iterate through all the options and keep all the AIC values
---then pick the best ones
----then store the R2 and parameter values for the best ones
----create average model from those options
 
 Total vars: 8
 
@@ -62,21 +57,25 @@ Combinations
 
 ##Growth Rate
 
-Should be able to save yourself a headache by combining the two. The problem is the variance structure is different between the two 
-
 ```{r}
+#Get the growth rate and dieback data
 GrowthRates = IndivHeights_byTree(sitesdata, years, sites) 
 
+#parameter for the regressions
 ctrl <- lmeControl(opt='optim')
 
+#list of potential parameters
 paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP", "DD.5.sp")
 
+#whether it is categorical (E - for ecoregion), linear (L), and quadratic (Q)
 functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
 
+#number to iterate through the functype list
 func_num <- 1:length(paramlist)
 
+#Variables to look through 
 d_vars <- c("TotGrowth", "AmntDieback") #the two variables to look at
-fam <- c("linear", "zeroinfl")
+fam <- c("linear", "zeroinfl") #regression type 
 
 for (gstat in c(1,2)){
   
@@ -84,7 +83,7 @@ for (gstat in c(1,2)){
   st_ind = 0
   f <- fam[gstat]
   
-  ##############################Iterating over all the sites
+  ############################## Iterating over all the sites
   for (indivstdat in GrowthRates){
     st_ind = st_ind + 1 #site
     st = sites[st_ind]
@@ -154,6 +153,7 @@ for (gstat in c(1,2)){
           types <- functype[param_n] #get the parameter types
           params_ind <- match(paramlist[param_n], colnames(indivstdat))
           
+          #run the regression
           reg3 <- MultReg2(indivstdat, params_ind, DepVarInd, types, RandVar, family = f)
           
           #Save the AIC values
@@ -193,9 +193,9 @@ for (gstat in c(1,2)){
               }
             
             #Move to layer 5 (five variables)#########################################################
-            layer5_nums = layer4_nums #so you have a list you can remove things from 
+            layer5_nums <- layer4_nums #so you have a list you can remove things from 
             for(num_l5 in layer4_nums){
-              num_iter = match(num_l5, layer5_nums)
+              num_iter <- match(num_l5, layer5_nums)
               layer5_nums <- layer5_nums[-num_iter]
               
               param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5) #the parameter numbers to use
@@ -221,7 +221,7 @@ for (gstat in c(1,2)){
               #Move to layer 6######################################################################
               layer6_nums = layer5_nums #so you have a list you can remove things from 
               for(num_l6 in layer5_nums){
-                num_iter = match(num_l6, layer6_nums)
+                num_iter <- match(num_l6, layer6_nums)
                 layer6_nums <- layer6_nums[-num_iter]
                 param_n <- c(num_l1, num_l2, num_l3, num_l4, num_l5, num_l6) #the parameter numbers to use
                 
@@ -243,7 +243,7 @@ for (gstat in c(1,2)){
                 }
                 
                 #Move to layer 7###################################################################
-                layer7_nums = layer6_nums #so you have a list you can remove things from 
+                layer7_nums <- layer6_nums #so you have a list you can remove things from 
                 
                 for (num_l7 in layer6_nums){
                   num_iter = match(num_l7, layer7_nums)
@@ -338,12 +338,14 @@ for (gstat in c(1,2)){
     
   } #end site iteration
   
-  write.csv(GR_AICmat, print(paste("040221_", DepVar_name, "_BestMultReg.csv", sep='')))
+  write.csv(GR_AICmat, print(paste("../05ProcessedDataOutputs/", DepVar_name, "_BestMultReg.csv", sep='')))
 
 }
 ```
 
 ##Mortality
+
+Same thing as above, but the models for mortality are linear
 
 ```{r}
 library(lme4)
@@ -351,11 +353,8 @@ library(lme4)
 condata <- IndivCond_final(sitesdata, sites)
 
 paramlist <- c("Ecoregion", "Dist", "Slope", "Aspect", "ElevDist", "eFFP", "MSP", "DD.5.sp")
-
-#functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
-
-func_num <- 1:length(paramlist)
 st_ind = 0
+
 
 
 ##############################Iterating over all the sites
@@ -609,6 +608,6 @@ for (indivstdat in condata){
   
 } #end site iteration
 
-write.csv(Mort_AICmat, "033121MortalityBestMultReg.csv")
+write.csv(Mort_AICmat, "../05ProcessedDataOutputs/MortalityBestMultReg.csv")
 
 ```
