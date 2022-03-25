@@ -34,13 +34,13 @@ pertfiles <- list("../03ExampleCleanedData/PVFulldata.csv", "../03ExampleCleaned
 sitesdata <- lapply(pertfiles, read.csv)
 names(sitesdata) <- sites
 
-regdata <- lapply(list("../05ProcessedDataOutputs/TotGrowth_BestMultReg.csv", "../05ProcessedDataOutputs/MortalityBestMultReg.csv"), read.csv)
+regdata <- lapply(list("../05ProcessedDataOutputs/05BestModels/TotGrowth_BestMultReg.csv", "../05ProcessedDataOutputs/05BestModels/MortalityBestMultReg.csv"), read.csv)
 
 ##NOTE, I DO NOT HAVE DIEBACK IN HERE BECAUSE WITH THE SIMULATED DATA, 
 ##DIEBACK DOESN'T WORK
 
 #####For subset analysis
-#regdata <- lapply(list("../05ProcessedDataOutputs/TotGrowth_BestMultReg12to13.csv","../05ProcessedDataOutputs/AmntDieback_BestMultReg12to13.csv", "../05ProcessedDataOutputs/MortalityBestMultReg12to13.csv"), read.csv)
+#regdata <- lapply(list("../05ProcessedDataOutputs/05BestModels/TotGrowth_BestMultReg12to13.csv","../05ProcessedDataOutputs/05BestModels/AmntDieback_BestMultReg12to13.csv", "../05ProcessedDataOutputs/05BestModels/MortalityBestMultReg12to13.csv"), read.csv)
 
 ```
 
@@ -299,8 +299,8 @@ fams <- c("linear", "zeroinfl")
   
   ##Write data to CSV
   if (dvarnm == "TotGrowth"){ #check what the random variables are (what the dep var is)
-    write.csv(overal_mod, "../05ProcessedDataOutputs/TGR_BestModelResult.csv")
-    write.csv(param_mat, "../05ProcessedDataOutputs/TGR_BestParamResult.csv")
+    write.csv(overal_mod, "../05ProcessedDataOutputs/05BestModels/TGR_BestModelResult.csv")
+    write.csv(param_mat, "../05ProcessedDataOutputs/05BestModels/TGR_BestParamResult.csv")
   #} else if (dvarnm == "AmntDieback"){
   #  write.csv(overal_mod, "../05ProcessedDataOutputs/ADBK_BestModelResults.csv")
   #  write.csv(param_mat, "../05ProcessedDataOutputs/ADBK_BestParamResults.csv")
@@ -477,8 +477,8 @@ functype <- c("E", "L", "Q", "Q", "Q", "Q", "Q", "Q", "Q")
     
   } #site for loop 
   
-  write.csv(overal_mod, "../05ProcessedDataOutputs/Mort_BestModelResults.csv")
-  write.csv(param_mat, "../05ProcessedDataOutputs/Mort_BestParamResults.csv")
+  write.csv(overal_mod, "../05ProcessedDataOutputs/05BestModels/Mort_BestModelResults.csv")
+  write.csv(param_mat, "../05ProcessedDataOutputs/05BestModels/Mort_BestParamResults.csv")
 
 
 ```

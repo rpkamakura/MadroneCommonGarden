@@ -338,7 +338,7 @@ for (gstat in c(1,2)){
     
   } #end site iteration
   
-  write.csv(GR_AICmat, print(paste("../05ProcessedDataOutputs/", DepVar_name, "_BestMultReg.csv", sep='')))
+  write.csv(GR_AICmat, print(paste("../05ProcessedDataOutputs/05BestModels/", DepVar_name, "_BestMultReg.csv", sep='')))
 
 }
 ```
@@ -608,6 +608,6 @@ for (indivstdat in condata){
   
 } #end site iteration
 
-write.csv(Mort_AICmat, "../05ProcessedDataOutputs/MortalityBestMultReg.csv")
+write.csv(Mort_AICmat, "../05ProcessedDataOutputs/05BestModels/MortalityBestMultReg.csv")
 
 ```

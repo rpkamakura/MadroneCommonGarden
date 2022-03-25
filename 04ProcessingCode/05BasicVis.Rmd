@@ -359,7 +359,7 @@ storage_mat$Pval[SO_rws] <- summary(SO_reg)$tTable[c(2:7), 5]
 ##bonferroni corrections
 storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
 
-write.csv(storage_mat, "../05ProcessedDataOutputs/Growth_estimates.csv")
+write.csv(storage_mat, "../05ProcessedDataOutputs/06BasicVis/Growth_estimates.csv")
 
 
 ```
@@ -585,7 +585,7 @@ storage_mat$Pval[SO_rws] <- summary(SO_reg)$coef[c(2:4), 4]
 storage_mat$Corr_Pval <- p.adjust(storage_mat$Pval, method = "bonferroni", n = length(storage_mat$Pval))
 
 
-write.csv(storage_mat, "../05ProcessedDataOutputs/mortality_estimates.csv")
+write.csv(storage_mat, "../05ProcessedDataOutputs/06BasicVis/mortality_estimates.csv")
 
 ```
 
@@ -844,7 +844,7 @@ for (src in unique(totData$Source)){ #for each source
 
 }
 
-write.csv(outputmat, "../05ProcessedDataOutputs/SourceAverages.csv")
+write.csv(outputmat, "../05ProcessedDataOutputs/06BasicVis/SourceAverages.csv")
 #output is a table with 4 x 3 = 12 columns (24 if you have standard deviationz) and 52 (?) rows
 
 ```
@@ -877,7 +877,7 @@ for (st in sites){ #site loop
   
   ##Is it worth having the above in a CSV and save yourself some pain? 
   
-  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyTotGrowth_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/06BasicVis/GRByFamilyTotGrowth_", st, ".csv", sep="")))
   
   ##NumDieback
   fit_dbk <- aov(AmntDieback ~ Source, data=st_dat)
@@ -890,7 +890,7 @@ for (st in sites){ #site loop
   
   print(paste("Percent of total pairwise Dieback sig at 0.05 is:", num_sig05_pair/tot_num_pair))
   
-  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyDieback_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/06BasicVis/GRByFamilyDieback_", st, ".csv", sep="")))
  
   ##Mortality
    ##NumDieback
@@ -904,7 +904,7 @@ for (st in sites){ #site loop
   
   print(paste("Percent of total pairwise Mortality sig at 0.05 is:", num_sig05_pair/tot_num_pair))
   
-  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/GRByFamilyMort_", st, ".csv", sep="")))
+  write.csv(sig05_pair, print(paste("../05ProcessedDataOutputs/06BasicVis/GRByFamilyMort_", st, ".csv", sep="")))
 }
 
 ```
@@ -1163,12 +1163,12 @@ for (s in 1:4){ #sites
   #                    cg_cl_dbk, cg_cl_dbk_se, o_cl_dbk, o_cl_dbk_se, 
   #                    cg_cl_mort, cg_cl_mort_se, o_cl_mort, o_cl_mort_se)
   
-  write.csv(gr_df, print(paste("../05ProcessedDataOutputs/GrowthClust_",sites[s], ".csv", sep="")))
-  write.csv(dbk_df, print(paste("../05ProcessedDataOutputs/DBKClust_",sites[s], ".csv", sep="")))
-  write.csv(mort_df, print(paste("../05ProcessedDataOutputs/MortClust_",sites[s], ".csv", sep="")))
+  write.csv(gr_df, print(paste("../05ProcessedDataOutputs/07LocalDist/GrowthClust_",sites[s], ".csv", sep="")))
+  write.csv(dbk_df, print(paste("../05ProcessedDataOutputs/07LocalDist/DBKClust_",sites[s], ".csv", sep="")))
+  write.csv(mort_df, print(paste("../05ProcessedDataOutputs/07LocalDist/MortClust_",sites[s], ".csv", sep="")))
 }
 
-write.csv(p_val_df, "../05ProcessedDataOutputs/LocalDistant_pvals.csv")
+write.csv(p_val_df, "../05ProcessedDataOutputs/07LocalDist/LocalDistant_pvals.csv")
 ```
 
 ##Turn it into a figure
@@ -1295,7 +1295,7 @@ p_val_df <- read.csv("../05ProcessedDataOutputs/LocalDistant_pvals.csv")
 adjusted <- p.adjust(p_val_df$o_pval, method = "bonferroni", n = length(p_val_df$o_pval))
 p_val_df$a_pval <- adjusted
 
-write.csv(p_val_df, "../05ProcessedDataOutputs/LocalDistant_MultComp_pvals.csv")
+write.csv(p_val_df, "../05ProcessedDataOutputs/07LocalDist/LocalDistant_MultComp_pvals.csv")
 ```
 
 
@@ -1421,7 +1421,7 @@ sto_mat$Lower[SO_rws] <- SO_ints[c(2:7),1]
 sto_mat$Estimates[SO_rws] <- SO_ints[c(2:7),2]
 sto_mat$Upper[SO_rws] <- SO_ints[c(2:7), 3]
 
-write.csv(sto_mat,"../05ProcessedDataOutputs/Dieback_intervals.csv")
+write.csv(sto_mat,"../05ProcessedDataOutputs/06BasicVis/Dieback_intervals.csv")
 
 ```
 

@@ -303,7 +303,7 @@ for (st in 1:length(sites)){ #site loop
     
   } #cutoff loop
   
-  write.csv(src_mat, print(paste("Percent_SRC_0609_", st_nm, ".csv", sep="")))
+  write.csv(src_mat, print(paste("../05ProcessedDataOutputs/03PerfPerc/Percent_SRC", st_nm, ".csv", sep="")))
   
   
   ###BY FAMILY#########################################

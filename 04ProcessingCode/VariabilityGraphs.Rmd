@@ -14,10 +14,9 @@ library(dplyr)
 library(sjPlot)
 library(ggpubr)
 
-source("PerSiteAnalys3.R")
-source("RegressionFuncs3.R")
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/02RegressionFuncs.R")
 
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Basic Datasets") #easier directory to work from
 
 Fulldatafiles1213 <- list("033121PHFulldata12to13.csv", "033121PVFulldata12to13.csv", "033121SFFulldata12to13.csv", "033121SOFulldata12to13.csv")
 

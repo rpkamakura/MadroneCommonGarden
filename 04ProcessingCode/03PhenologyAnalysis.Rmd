@@ -339,7 +339,7 @@ for (phen in 1:3) {
   
 } #end the loop for each phenology type
 
-write.csv(Phen_AICmat, "../05ProcessedDataOutputs/PhenBestMultReg.csv")
+write.csv(Phen_AICmat, "../05ProcessedDataOutputs/05BestModels/PhenBestMultReg.csv")
 ```
 
 
@@ -513,7 +513,7 @@ for (phen in 1:3) {#For each response variable
 } #dependent variable for loop 
 
   ##Write data to CSV
-   write.csv(overal_mod, "../05ProcessedDataOutputs/Phen_BestModelResults.csv")
-   write.csv(param_mat, "../05ProcessedDataOutputs/Phen_BestParamResults.csv")
+   write.csv(overal_mod, "../05ProcessedDataOutputs/05BestModels/Phen_BestModelResults.csv")
+   write.csv(param_mat, "../05ProcessedDataOutputs/05BestModels/Phen_BestParamResults.csv")
 
 ```
