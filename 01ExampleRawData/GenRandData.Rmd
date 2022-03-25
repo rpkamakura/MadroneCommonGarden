@@ -22,7 +22,7 @@ for (f in 1:length(pertfiles)){
   
   filenm <- pertfiles[f]
   dat <- read.csv(paste("./OldRaw/",filenm, sep=""))
-  dat <- na.omit(dat)
+  dat <- dat[!is.na(dat$cond),]
   
   
   
@@ -73,7 +73,7 @@ for (f in 1:length(pertfiles)){
     newdat$ht <- round(rnorm(numHt, mean=htMean, sd=htSd),0)
     newdat$ht[newdat$ht <= 0] <- 1
     
-    write.csv(newdat, filenm)
+    write.csv(newdat, print(paste("./01CondGrowthPhen/CondGR/", filenm, sep="")))
     
     
     
@@ -100,7 +100,7 @@ for (f in 1:length(pertfiles)){
     newdat$Leaves.emerging <- round(rnorm(numHt, mean=leMean, sd=leSd),0)
     newdat$Leaves.emerging[newdat$Leaves.emerging <= 0] <- 3
     
-    write.csv(newdat, filenm)
+    write.csv(newdat, "./01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
     
     
   }

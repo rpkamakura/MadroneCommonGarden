@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(vip)
 #read-in functions to calucate growth and mortality
-source("../04ProcessingCode/BackgroundFunctions/AnalysisFunctions_GRMort.R")
+source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
 
 options(stringsAsFactors = FALSE)
 
@@ -41,7 +41,7 @@ cg_locandclim <- locandclim[c((a-3):a),]
 ##Environmental Variables
 
 ```{r variables from ClimateNA and WNA}
-GrowthRates <- PercGrowth_byTree(sitesdata, years, sites, type="sub") 
+GrowthRates <- PercGrowth_byTree(sitesdata, years, sites) 
 condata <- IndivCond_final(sitesdata, sites)
 
 #WeatherData

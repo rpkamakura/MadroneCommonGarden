@@ -8,7 +8,7 @@ library(plyr)
 ##############################################################################
 
 #instead of just raw growth, now you have percent growth
-PercGrowth_byTree <- function(datasets, years, sites, type="full"){
+PercGrowth_byTree <- function(datasets, years, sites){
 
   
   Growthrtdata <- list()
