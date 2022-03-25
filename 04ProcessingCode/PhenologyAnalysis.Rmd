@@ -43,7 +43,6 @@ Notably - was recorded in March 2018
 
 ```{r}
 #Data with different Distances
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3")
 
 #Data with climatic variables
 DistClimData <- read.csv("Climate Data/033121LocClim.csv")

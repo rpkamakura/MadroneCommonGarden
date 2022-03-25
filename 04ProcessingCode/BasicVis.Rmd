@@ -1334,61 +1334,6 @@ for (s in 1:4){ #sites
 } 
 ```
 
-##Phenology + Other Variables
-
-```{r phen + others}
-
-ctrl <- lmeControl(opt='optim')
-
-p_dat <- as.data.frame(aggregate(PhenData[,11], list(PhenData$Name), mean))
-names(p_dat) <- c("Family", "BE")
-p_dat$BE2 <- (p_dat$BE)^2
-
-for (s in c(1:4)){
-  
-  st <- sites[s]
-  gr <- GrowthRates[[s]]
-  mort <- condata[[s]]
-  
-  gr_p <- na.omit(merge(gr, p_dat, by="Family"))
-  mort_p <- na.omit(merge(mort, p_dat, by="Family"))
-  
-  ##so you know where you are
-  print(paste("Data Analysis for", st))
-  
-  ##Linear Regression
-  lm_gr <- lme(TotGrowth ~ BE2 + BE, random = ~1|Block, data = gr_p, na.action = na.omit, control = ctrl, method="ML")
-  #lm_gr <- lm(TotGrowth ~ BE2 + BE, data = gr_p)
-  #print(summary(lm_gr))
-  reg_sum <- summary(lm_gr)
-  reg_r2 <- r.squaredGLMM(lm_gr) 
-  reg_int <- intervals(lm_gr, which = "fixed")
-  print(reg_r2)
-  print(reg_int)
-  
-  lm_dbk <- lme(AmntDieback~ BE2 + BE, random = ~1|Block, data = gr_p, na.action = na.omit, control = ctrl, method="ML")
-  #lm_dbk <- lm(AmntDieback ~ BE2 + BE, data = gr_p)
-  #print(summary(lm_dbk))
-  reg_sum <- summary(lm_dbk)
-  reg_r2 <- r.squaredGLMM(lm_dbk) 
-  reg_int <- intervals(lm_dbk, which = "fixed")
-  print(reg_r2)
-  print(reg_int)
-  
-  lm_mort <- glmer(PercDead ~ BE2 + BE + (1|Block), data = mort_p, family="binomial", 
-                   control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)), weights = Total)
-  #lm_mort <- lm(PercDead ~ BE2 + BE, data = mort_p)
-  m_summ <- summary(lm_mort)
-  reg_r2 <- r.squaredGLMM(lm_mort)
-  reg_int <- m_summ$coefficients
-  
-  print(reg_r2)
-  print(reg_int)
-  
-}
-
-
-```
 
 ##Dieback
 ```{r dieback}
@@ -1483,7 +1428,7 @@ write.csv(sto_mat,"../05ProcessedDataOutputs/Dieback_intervals.csv")
 
 ctrl <- lmeControl(opt='optim')
 
-PhenData <- read.csv("../033121SF_Phen_AlldataRaw.csv")
+PhenData <- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
 
 PhenData$Ecoregion <- relevel(as.factor(PhenData$Ecoregion), ref="WIVA")
 
