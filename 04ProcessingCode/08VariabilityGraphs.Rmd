@@ -1,6 +1,6 @@
 ---
-title: "VariabilityGraphs"
-author: "Renata Poulton Kamakura"
+title: "Non-drought vs Drought"
+author: "RPK"
 date: "May 26, 2020"
 output: html_document
 ---
@@ -18,9 +18,9 @@ source("../04ProcessingCode/BackgroundFunctions/01AnalysisFunctions_GRMort.R")
 source("../04ProcessingCode/BackgroundFunctions/02RegressionFuncs.R")
 
 
-Fulldatafiles1213 <- list("033121PHFulldata12to13.csv", "033121PVFulldata12to13.csv", "033121SFFulldata12to13.csv", "033121SOFulldata12to13.csv")
+Fulldatafiles1213 <- list("../03ExampleCleanedData/PHFulldata12to13.csv", "../03ExampleCleanedData/PVFulldata12to13.csv", "../03ExampleCleanedData/SFFulldata12to13.csv", "../03ExampleCleanedData/SOFulldata12to13.csv")
 
-Fulldatafiles1415 <- list("033121PHFulldata14to15.csv", "033121PVFulldata14to15.csv", "033121SFFulldata14to15.csv", "033121SOFulldata14to15.csv")
+Fulldatafiles1415 <- list("../03ExampleCleanedData/PHFulldata14to15.csv", "../03ExampleCleanedData/PVFulldata14to15.csv", "../03ExampleCleanedData/SFFulldata14to15.csv", "../03ExampleCleanedData/SOFulldata14to15.csv")
 
 sitesdata1213 <- lapply(Fulldatafiles1213, read.csv)
 sitesdata1415 <- lapply(Fulldatafiles1415, read.csv)
@@ -30,8 +30,6 @@ names(sitesdata1213) <- c("PH1213", "PV1213", "SF1213", "SO1213")
 names(sitesdata1415) <- c("PH1415", "PV1415", "SF1415", "SO1415")
 
 sites <- c("PuyallupValley", "PuyallupHill", "Starker", "Sprague")
-
-setwd("C:/Users/rep31/Desktop/Madrone/Madrone5/Madrone3/Data Analysis") #easier directory to work from
 
 #For 12-13
 GRDBKData1213 <- PercGrowth_byTree(sitesdata1213, c(12,13), sites)

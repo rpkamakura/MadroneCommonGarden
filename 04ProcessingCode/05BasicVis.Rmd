@@ -60,51 +60,10 @@ eFFP_base <- c(16, 84, 81, 82.5, 96, 110)
 
 ```
 
-##General Notes
-
-_Baselines:_
-
-Ecoregion 
-SO <- KLMT
-SF <- WIVA
-PV <- PULO
-PH <- PULO
-PY <- PULO
-
-Dist, NSDist, EWDist, ElevDist
-x = 0 for all
-
-bFFP
-SO <- 110
-SF <- 96
-PV <- 81
-PH <- 84
-PY <- 82.5
-
-eFFP
-SO <- 298
-SF <- 318
-PV <- 319
-PH <- 318
-PY <- 318.5
-
-FFP
-SO <- 188
-SF <- 222
-PV <- 238
-PH <- 234
-PY <- 236
-
-CORA_loc <- c("BA", "GA", "LA", "LC", "LG", "PV", "SA", "SC")
-
-PULO_loc <- c("AN", "BC", "BR", "CB", "CL", "FB", "FW", "GH", "KM", "KT", "OH", "OL", "PA", "PD", 
-              "SB", "VI", "WI", "CR")
-WIVA_loc <- c("AK", "OR", "VE", "WL", "WV", "ZE")
-
-KLMT_loc <- c("BK", "CP", "CY", "DY", "GP", "HC", "KL", "MG", "RA")
-
-
 ##Growth Rates
+
+Notice here that the models I am diving into here are hardcoded, you can change the
+variables (listed in the comments) to match ones that suit your analyses of interest
 
 ```{r}
 GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
@@ -270,6 +229,9 @@ print(Overall_DBK)
 
 ###Growth Rates 2
 
+Same thing here as the first growth rates section, I hard-coded the variables of interest, 
+you can change this to be whatever you want, this is just to illustrate
+
 ```{r}
 
 GrowthRates = IndivHeights_byTree(sitesdata, years, sites)
@@ -367,6 +329,8 @@ write.csv(storage_mat, "../05ProcessedDataOutputs/06BasicVis/Growth_estimates.cs
 
 
 ##Growth Rates - split years
+
+Sane as the above but splitting up the years
 
 ```{r split growth}
 ctrl <- lmeControl(opt='optim')
@@ -1290,7 +1254,7 @@ grid.arrange(p_gr, p_mort, nrow = 2)
 
 ```{r bonferroni}
 ##reading in the csv you created before
-p_val_df <- read.csv("../05ProcessedDataOutputs/LocalDistant_pvals.csv")
+p_val_df <- read.csv("../05ProcessedDataOutputs/07LocalDist/LocalDistant_pvals.csv")
 
 adjusted <- p.adjust(p_val_df$o_pval, method = "bonferroni", n = length(p_val_df$o_pval))
 p_val_df$a_pval <- adjusted

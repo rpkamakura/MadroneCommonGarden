@@ -34,16 +34,11 @@ sources <- unique(ecoregdat$Source)
 #Data with climatic variables
 DistClimData <- read.csv("../01ExampleRawData/02LocationData/LocClim.csv")
 
-```
-
-## Pull in phenology data
-
-
-```{r}
-
+#Phenology data
 PhenData<- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
 
 ```
+
 
 ##Data Analysis Section
 

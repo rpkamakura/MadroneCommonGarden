@@ -15,7 +15,8 @@ differences in their mean growth, dieback, mortality, or phenology (at p-value o
 - note: for simulated data you should see mostly 0s in the output because they are all
 randomly generated and should not significantly differ 
 
-
+08VariabilityGraphs -> look at variation between non-drought (2012 and 2013) and drought
+(2014 and 2015) years 
 
 Useful Visualizations
 
