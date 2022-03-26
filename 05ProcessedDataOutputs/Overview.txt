@@ -1,0 +1,15 @@
+01EnvVars <- correlations between environmental variables both with one another and to
+performance metrics
+
+02PhenPerc <- percentiles for families for phenological metrics (07Percentiles code)
+
+03PerfPerc <- percentiles for families for performance metrics (growth, dieback, mort -> 07Percentiles code)
+
+04CrossVal <- outputs from crossvalidation (06CrossValidation code)
+
+05BestModels <- models with lowest AIC values (01IterateThroughAllModels, 
+02PullOutRegressions, 03PhenologyAnalysis code)
+
+06BasicVis <- most of the outputs from the 05BasicVis code
+
+07LocalDist <- outputs of local vs distant families analyses (from 05BasicVis code)

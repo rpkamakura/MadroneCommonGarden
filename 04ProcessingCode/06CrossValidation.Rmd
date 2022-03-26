@@ -34,9 +34,12 @@ names(sitesdata) <- sites
 PhenData <- read.csv("../01ExampleRawData/01CondGrowthPhen/SF_Phen_AlldataRaw.csv")
 
 ##Find the list of the best models for each variable 
-regdata <- lapply(list("../05ProcessedDataOutputs/PhenBestMultReg.csv", "../05ProcessedDataOutputs/TotGrowth_BestMultReg.csv", "../05ProcessedDataOutputs/MortalityBestMultReg.csv"), read.csv)
+regdata <- lapply(list("../05ProcessedDataOutputs/05BestModels/PhenBestMultReg.csv", "../05ProcessedDataOutputs/05BestModels/TotGrowth_BestMultReg.csv", "../05ProcessedDataOutputs/05BestModels/MortalityBestMultReg.csv"), read.csv)
 
-#regdata <- lapply(list("./Data Analysis/033121PhenBestMultReg.csv","./Data Analysis/040121_TotGrowth_BestMultReg12to13.csv","./Data Analysis/040121_AmntDieback_BestMultReg12to13.csv", "./Data Analysis/033121MortalityBestMultReg12to13.csv"), read.csv)
+#regdata <- lapply(list("../05ProcessedDataOutputs/05BestModels/PhenBestMultReg.csv",
+#"../05ProcessedDataOutputs/05BestModels/TotGrowth_BestMultReg12to13.csv",
+#"../05ProcessedDataOutputs/05BestModels/AmntDieback_BestMultReg12to13.csv", 
+#"../05ProcessedDataOutputs/05BestModels/MortalityBestMultReg12to13.csv"), read.csv)
 
 ##Mortality data
 MortData <- IndivCond_final(sitesdata, sites)

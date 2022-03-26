@@ -22,11 +22,12 @@ for (f in 1:length(pertfiles)){
   
   filenm <- pertfiles[f]
   dat <- read.csv(paste("./OldRaw/",filenm, sep=""))
-  dat <- dat[!is.na(dat$cond),]
+  
   
   
   
   if (filenm != "033121SF_Phen_AlldataRaw.csv"){
+    dat <- dat[!is.na(dat$cond),]
     newdat <- dat[,1:7]
 
     htMean <- mean(na.omit(as.numeric(dat$ht)))

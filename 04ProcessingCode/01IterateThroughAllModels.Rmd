@@ -77,11 +77,11 @@ func_num <- 1:length(paramlist)
 d_vars <- c("TotGrowth", "AmntDieback") #the two variables to look at
 fam <- c("linear", "zeroinfl") #regression type 
 
-for (gstat in c(1,2)){
+#for (gstat in c(1,2)){
   
-  DepVar_name <- d_vars[gstat] #which of the two you're looking at
+  DepVar_name <- "TotGrowth"  #d_vars[gstat] #which of the two you're looking at
   st_ind = 0
-  f <- fam[gstat]
+  f <- fam[1] #[gstat]
   
   ############################## Iterating over all the sites
   for (indivstdat in GrowthRates){
@@ -338,9 +338,11 @@ for (gstat in c(1,2)){
     
   } #end site iteration
   
-  write.csv(GR_AICmat, print(paste("../05ProcessedDataOutputs/05BestModels/", DepVar_name, "_BestMultReg.csv", sep='')))
+  write.csv(GR_AICmat, "../05ProcessedDataOutputs/05BestModels/TotGrowth_BestMultReg.csv")
+  
+  #write.csv(GR_AICmat, print(paste("../05ProcessedDataOutputs/05BestModels/", DepVar_name, "_BestMultReg.csv", sep='')))
 
-}
+#}
 ```
 
 ##Mortality

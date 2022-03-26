@@ -344,8 +344,6 @@ __In Depth Multiple Regression Results__
 regdata <- as.data.frame(Phen_AICmat)
 paramlist <- c("Ecoregion", "Lat", "Long", "Elev", "eFFP", "MSP", "Slope", "Aspect", "DD.5.sp")
 
-####NEED TO ADAPT THE FOLLOWING
-
 for (phen in 1:3) {#For each response variable 
   
   #which dependent variable you have 

@@ -15,9 +15,12 @@ PercGrowth_byTree <- function(datasets, years, sites){
   iter = 0
   
   for (sitedata in datasets){
+    
     iter = iter + 1
     
     sitedata <- sitedata[!is.na(sitedata$Height),] #because those will be useless anyway
+    sitedata <- sitedata[!is.na(sitedata$Block),] #because we don't know where they are
+    
     st <- as.vector(sitedata$Site[1])
     sitedata$Year <- as.numeric(sitedata$Year)
     sitedata$Height <- as.numeric(sitedata$Height)
@@ -47,6 +50,7 @@ PercGrowth_byTree <- function(datasets, years, sites){
       for (block in unique(areadat$Block)){
         
         blockdat <- areadat[areadat$Block== block,]
+        
         for (tree in unique(blockdat$Tree)){ #have to deal with multiple trees 
           row_ind <- row_ind + 1
           treedat <- blockdat[blockdat$Tree== tree,]
@@ -147,7 +151,7 @@ PercGrowth_byTree <- function(datasets, years, sites){
 
 }
 
-
+#####################################################################################
 
 
 IndivHeights_byTree <- function(datasets, years, sites){
@@ -158,6 +162,8 @@ IndivHeights_byTree <- function(datasets, years, sites){
     iter = iter + 1
     
     sitedata <- sitedata[!is.na(sitedata$Height),] #because those will be useless anyway
+    sitedata <- sitedata[!is.na(sitedata$Block),] #because we don't know where they are
+    
     st <- as.vector(sitedata$Site[1])
     sitedata$Year = as.numeric(sitedata$Year)
     sitedata$Height = as.numeric(sitedata$Height)
@@ -293,6 +299,9 @@ IndivCond <- function(datasets, sites){
     st_ind = st_ind + 1
     st = sites[st_ind]
     
+    sitedata <- sitedata[!is.na(sitedata$Block),] #because we don't know where they are
+    
+    
     numrow <- (length(na.omit(unique(sitedata$Family))) * length(na.omit(unique(sitedata$Year))) *
                  length(na.omit(unique(sitedata$Block))))
       #number of families and years and blocks
@@ -372,6 +381,8 @@ IndivCond <- function(datasets, sites){
   
 }
 
+#############################################
+
 ##Just looks at overall mortality instead of by year
 IndivCond_final <- function(datasets, sites){
   Conddata <- list()
@@ -379,6 +390,8 @@ IndivCond_final <- function(datasets, sites){
   for (sitedata in datasets){
     st_ind = st_ind + 1
     st = sites[st_ind]
+    
+    sitedata <- sitedata[!is.na(sitedata$Block),] #because we don't know where they are
     
     numrow <- (length(na.omit(unique(sitedata$Family)))*
                  length(na.omit(unique(sitedata$Block))))
