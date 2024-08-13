@@ -9,7 +9,7 @@ DOI: 10.1016/j.foreco.2021.119487
 The data are not the same as those presented in the paper, but the code are. The
 example data are to illustrate the function of the code. 
 
-Reach out to renata.kamakura@duke.edu for questions. 
+Reach out to renatakamakura@gmail.com for questions. 
 
 
 #################################################
